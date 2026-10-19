@@ -28,21 +28,28 @@ a:hover { color: #c9b8ff; }
 
 .top {
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 4px 18px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
   max-width: 1120px;
   margin: 0 auto;
-  padding: 28px 20px 0;
+  padding: 12px 20px 0;
 }
 .top h1 { margin: 0; font: 600 1.5rem/1.2 var(--mono); letter-spacing: .01em; }
-.tagline { flex: 1 1 18rem; margin: 0; color: var(--muted); }
-.links { display: flex; gap: 16px; }
+.links { display: flex; gap: 4px; }
+.links a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 8px; }
 
-.hero { padding: clamp(40px, 11vh, 130px) 16px clamp(28px, 7vh, 80px); }
+.hero { padding: clamp(24px, 7vh, 90px) 16px clamp(28px, 7vh, 80px); }
 /* The font size only applies when fit is off; with fit on, the library sizes the text. */
 #hero { max-width: 1200px; margin: 0 auto; font-size: clamp(16px, 3vw, 34px); }
-.hint { margin: 32px 0 0; text-align: center; color: var(--muted); font-size: .85rem; }
+.tagline { margin: 32px 0 0; text-align: center; color: var(--muted); }
+.hint { margin: 0; padding: 0 0 8px; text-align: center; color: var(--muted); font-size: .85rem; }
+.how { text-align: center; }
+.how > summary { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 12px; cursor: pointer; list-style: none; color: var(--muted); font-size: .85rem; }
+.how > summary::-webkit-details-marker { display: none; }
+.how > summary::after { content: '›'; display: inline-block; transition: transform .15s; }
+.how[open] > summary::after { transform: rotate(90deg); }
+.how > summary:hover { color: var(--text); }
 
 /* ---- options panel ---- */
 
@@ -278,7 +285,7 @@ pre {
 .foot { padding: 0 20px 40px; text-align: center; color: var(--muted); font-size: .84rem; }
 
 @media (max-width: 560px) {
-  .top { padding-top: 20px; }
+  .top { padding-top: 6px; }
   .panel { padding: 0 12px 40px; }
   .bar { width: calc(100% - 24px); }
   .bar-row { padding: 12px; }

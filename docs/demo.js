@@ -702,6 +702,14 @@ $('open-all').addEventListener('click', () => {
   for (const section of sections) section.open = open;
 });
 
+// ---- how to use: folded by default, and kept across visits ----
+
+const how = $('how');
+try { how.open = localStorage.getItem('mathglyph-demo:how') === 'open'; } catch {}
+how.addEventListener('toggle', () => {
+  try { localStorage.setItem('mathglyph-demo:how', how.open ? 'open' : 'closed'); } catch {}
+});
+
 // ---- reset: every option back to the first view ----
 
 $('reset').addEventListener('click', () => {
