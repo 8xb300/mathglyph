@@ -1,4 +1,4 @@
-/*! mathglyph v0.3.0 | MIT | github.com/8xb300/mathglyph */
+/*! mathglyph v0.3.1 | MIT | github.com/8xb300/mathglyph */
 
 // src/mathglyph.js
 var BASE = { bold: 119808, italic: 119860, script: 119964, fraktur: 120068, double: 120120 };
@@ -288,8 +288,8 @@ var DEFAULTS = {
   rest: "glyphs",
   revert: 0,
   anchor: null,
-  tracking: -0.02,
-  wordSpacing: 0.45,
+  tracking: -0.04,
+  wordSpacing: 0.3,
   intro: true,
   speed: 1,
   hoverRadius: 2.6,

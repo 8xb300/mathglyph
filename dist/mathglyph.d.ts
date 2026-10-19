@@ -62,9 +62,9 @@ export interface Options {
    * element, and its line grows outward from it. Default null: no anchor.
    */
   anchor?: string | boolean | null;
-  /** Extra space between letters, in em. Can be negative. Default -0.02. */
+  /** Extra space between letters, in em. Can be negative. Default -0.04. */
   tracking?: number;
-  /** The width of a space, in em. Default 0.45 (a monospace space is about 0.6). */
+  /** The width of a space, in em. Default 0.3 (a monospace space is about 0.6). */
   wordSpacing?: number;
   intro?: boolean;
   speed?: number;

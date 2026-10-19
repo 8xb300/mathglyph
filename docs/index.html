@@ -50,6 +50,23 @@
             <small id="text-d">One line per row. Wrap words in *stars* to highlight them.</small>
             <div class="row"><button type="submit">Apply</button></div>
           </form>
+          <form class="field" id="anchor-form">
+            <label for="anchor">anchor</label>
+            <input type="text" id="anchor" autocomplete="off" spellcheck="false" placeholder="off" aria-describedby="anchor-d">
+            <small id="anchor-d">A word in the text that never swaps or moves: it stays at the middle. Empty: off. Wrap it in *stars* to make it white.</small>
+          </form>
+          <div class="field">
+            <label for="tracking">tracking</label>
+            <output for="tracking"></output>
+            <input type="range" id="tracking" data-opt="tracking" data-unit=" em" min="-0.1" max="0.1" step="0.005" aria-describedby="tracking-d">
+            <small id="tracking-d">Space between letters. Below 0: closer than plain monospace.</small>
+          </div>
+          <div class="field">
+            <label for="wordSpacing">wordSpacing</label>
+            <output for="wordSpacing"></output>
+            <input type="range" id="wordSpacing" data-opt="wordSpacing" data-unit=" em" min="0" max="0.8" step="0.01" aria-describedby="wordSpacing-d">
+            <small id="wordSpacing-d">Width of a space. A plain monospace space is about 0.6 em.</small>
+          </div>
           <div class="field">
             <label for="font">font</label>
             <select id="font" aria-describedby="font-d"></select>

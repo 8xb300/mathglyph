@@ -19,11 +19,11 @@ const LANGUAGES = {
   en: {
     name: 'English',
     lines: [
-      'every letter is a *variable*',
-      'and every word, a small *proof*',
+      'every letter is a variable',
+      'and every word, a small proof',
       'the symbols *breathe* around it',
       'then settle back into plain text',
-      'therefore: nothing is *plain*',
+      'therefore: nothing is plain',
     ],
     anchor: 'breathe',
   },
@@ -88,8 +88,8 @@ const LANGUAGES = {
 // The options the page can change, in the order "Your config" lists them.
 const SHOWN = [
   'lines', 'fonts', 'font', 'wordMap', 'lookalikes', 'palette', 'substitute', 'color', 'box', 'boxStyle', 'labels',
-  'symbols', 'tokens', 'symbolMix', 'legible', 'words', 'motion', 'rest', 'revert', 'anchor', 'intro', 'speed',
-  'hoverRadius', 'expand', 'fit', 'maxSize',
+  'symbols', 'tokens', 'symbolMix', 'legible', 'words', 'motion', 'rest', 'revert', 'anchor', 'tracking',
+  'wordSpacing', 'intro', 'speed', 'hoverRadius', 'expand', 'fit', 'maxSize',
 ];
 
 const $ = (id) => document.getElementById(id);
@@ -156,6 +156,7 @@ for (const [code, language] of Object.entries(LANGUAGES)) {
   $('lang').add(option);
 }
 $('text').value = state.lines.join('\n');
+$('anchor').value = state.anchor || '';
 
 $('lang').addEventListener('change', () => {
   const code = $('lang').value;
@@ -163,6 +164,7 @@ $('lang').addEventListener('change', () => {
   hero.lang = code;
   $('text').lang = code;
   $('text').value = language.lines.join('\n');
+  $('anchor').value = language.anchor || '';
   tableName = language.lookalikes || null;
   set({
     lines: language.lines,
@@ -177,6 +179,9 @@ $('text-form').addEventListener('submit', (event) => {
   const lines = $('text').value.split('\n').map((line) => line.trimEnd()).filter(Boolean);
   if (lines.length) set({ lines });
 });
+
+$('anchor').addEventListener('change', () => set({ anchor: $('anchor').value.trim() || null }));
+$('anchor-form').addEventListener('submit', (event) => event.preventDefault());
 
 // ---- symbol groups ----
 

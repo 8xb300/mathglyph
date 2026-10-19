@@ -91,6 +91,12 @@ try {
       });
     });
   }
+  await check('hover, then change the anchor', async () => {
+    await hover();
+    await page.locator('#anchor').fill('symbols');
+    await page.locator('#anchor').press('Enter');
+    await page.locator('#anchor').blur();
+  });
   await check('click "reroll"', () => page.locator('#reroll').click());
   await check('click "replay"', () => page.locator('#replay').click(), INTRO_MS);
   await check('hover, then leave the text', async () => {
