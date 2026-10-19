@@ -569,9 +569,11 @@ function addCard(kind, name, { about, lines = CARD_TEXT, texts, options, preview
 
 // The quick controls under the hero: a segmented control for each kind, in step with the gallery.
 function addSegments(kind) {
-  for (const name of Object.keys(GALLERY[kind]).filter((key) => !GALLERY[kind][key].custom)) {
+  // The custom layout and the stack come last, marked as examples of your own.
+  for (const name of Object.keys(GALLERY[kind])) {
     const button = document.createElement('button');
     button.type = 'button';
+    button.className = GALLERY[kind][name].custom ? 'own' : '';
     button.textContent = name;
     button.value = name;
     $(`bar-${kind}`).append(button);
