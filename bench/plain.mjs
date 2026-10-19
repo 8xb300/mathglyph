@@ -11,8 +11,11 @@
 // motion.
 // The hooks of mount() on the bench page: burst(), setPointer(), clearPointer(), pause(), step(),
 // resume(), on() and off().
+// The idle option, each mode with each rest: the text keeps moving on screen, and no timer or frame
+// runs while the tab is hidden, while the text is scrolled off screen, or with reduced motion.
+// With idle off, the parts above check that nothing changed.
 //
-//   node bench/plain.mjs [demo] [matrix [layout]] [stacks] [hooks]
+//   node bench/plain.mjs [demo] [matrix [layout]] [stacks] [hooks] [idle]
 //
 // With no part named, all of them run. A layout name runs the matrix for that layout only, so
 // node bench/plain.mjs matrix sine stacks hooks runs the custom layout, the stacks and the hooks.
@@ -42,7 +45,7 @@ function modules(kind, builtIn) {
   const built = fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => f.endsWith('.min.js')) : [];
   return [builtIn, ...built.map((f) => f.slice(0, -'.min.js'.length)).sort()];
 }
-const PARTS = ['demo', 'matrix', 'stacks', 'hooks'];
+const PARTS = ['demo', 'matrix', 'stacks', 'hooks', 'idle'];
 const args = process.argv.slice(2);
 const wanted = (part) => !args.some((arg) => PARTS.includes(arg)) || args.includes(part);
 const oneLayout = args.find((arg) => !PARTS.includes(arg));
@@ -387,6 +390,71 @@ async function hooks() {
   await page.close();
 }
 
+// One idle mode with one rest on the bench page (2,000 characters), with the ripple effect for
+// wander. Moving means that the canvas changes in most of 8 looks, 0.5 s apart.
+async function idleCheck(mode, rest, reduced) {
+  const page = await browser.newPage({ viewport: { width: 1400, height: 1000 } });
+  if (reduced) await page.emulateMedia({ reducedMotion: 'reduce' });
+  const options = { idle: { mode, every: 0.5, amount: 0.1 } };
+  await page.goto(`${base}/bench/page.html?impl=canvas&rest=${rest}&effect=ripple&options=${encodeURIComponent(JSON.stringify(options))}`);
+  await page.evaluate(() => window.__ready);
+  await sleep(1500);
+  const canvas = page.locator('#fx canvas');
+  const pixels = () => canvas.evaluate((c) => c.toDataURL());
+  const wakeups = () => page.evaluate(() => window.__wakeups);
+  const changes = async () => {
+    let last = await pixels(), n = 0;
+    for (let k = 0; k < 8; k++) {
+      await sleep(500);
+      const now = await pixels();
+      if (now !== last) n++;
+      last = now;
+    }
+    return n;
+  };
+  const quiet = async () => {
+    await sleep(1000);
+    const before = await wakeups();
+    await sleep(IDLE_MS);
+    return (await wakeups()) - before;
+  };
+  const name = `idle ${mode}, rest ${rest}`;
+  if (reduced) {
+    const n = await changes();
+    const w = await quiet();
+    report(`${name}, reduced motion: nothing moves, no timer or frame`, !n && !w, `: ${n} changes, ${w} wakeups`);
+    await page.close();
+    return;
+  }
+  const moving = await changes();
+  report(`${name}: the text keeps moving on screen`, moving >= 6, `: ${moving} of 8 looks changed`);
+  const setHidden = (hidden) => page.evaluate((h) => {
+    Object.defineProperty(document, 'hidden', { value: h, configurable: true });
+    Object.defineProperty(document, 'visibilityState', { value: h ? 'hidden' : 'visible', configurable: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+  }, hidden);
+  await setHidden(true);
+  const hidden = await quiet();
+  await setHidden(false);
+  await sleep(500);
+  const back = await changes();
+  report(`${name}: hidden tab, no timer or frame, then moving again`, !hidden && back >= 6, `: ${hidden} wakeups, then ${back} of 8 changed`);
+  await page.evaluate(() => window.scrollTo(0, 3000));
+  const off = await quiet();
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await sleep(500);
+  const again = await changes();
+  report(`${name}: off screen, no timer or frame, then moving again`, !off && again >= 6, `: ${off} wakeups, then ${again} of 8 changed`);
+  await page.close();
+}
+
+async function idleChecks() {
+  for (const mode of ['shuffle', 'wander']) {
+    for (const rest of ['glyphs', 'plain']) await idleCheck(mode, rest, false);
+    await idleCheck(mode, 'plain', true);
+  }
+}
+
 try {
   if (wanted('demo')) {
     await demoChecks();
@@ -395,6 +463,7 @@ try {
   if (wanted('matrix')) await matrix();
   if (wanted('stacks')) await stacks();
   if (wanted('hooks')) await hooks();
+  if (wanted('idle')) await idleChecks();
 } finally {
   await browser.close();
   server.close();

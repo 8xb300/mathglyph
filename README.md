@@ -1,4 +1,4 @@
-[![npm](https://img.shields.io/npm/v/mathglyph?style=flat-square&color=cb3837)](https://www.npmjs.com/package/mathglyph) [![provenance](https://img.shields.io/badge/npm-provenance-2ea44f?style=flat-square)](https://www.npmjs.com/package/mathglyph) [![core size](https://img.shields.io/badge/core-14.1%20kB%20gzip-blue?style=flat-square)](#sizes) [![licence: MIT](https://img.shields.io/badge/licence-MIT-yellow?style=flat-square)](#licence)
+[![npm](https://img.shields.io/npm/v/mathglyph?style=flat-square&color=cb3837)](https://www.npmjs.com/package/mathglyph) [![provenance](https://img.shields.io/badge/npm-provenance-2ea44f?style=flat-square)](https://www.npmjs.com/package/mathglyph) [![core size](https://img.shields.io/badge/core-14.4%20kB%20gzip-blue?style=flat-square)](#sizes) [![licence: MIT](https://img.shields.io/badge/licence-MIT-yellow?style=flat-square)](#licence)
 
 # mathglyph
 
@@ -26,7 +26,7 @@ mount(document.getElementById('hero'), { lines: ['Every proof starts', 'with a *
 No build step: load it from jsDelivr with a script tag. The same exports are on the global `MathGlyph`.
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/mathglyph.iife.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.7.0/dist/mathglyph.iife.min.js"></script>
 ```
 
 Deno: `import { mount } from "npm:mathglyph";`
@@ -87,7 +87,7 @@ Without a bundler, load it from jsDelivr, as below, or copy `dist/` into your pr
 ```html
 <h1 id="hero">Every proof starts with a good guess</h1>
 <script type="module">
-  import { mount } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/mathglyph.min.js';
+  import { mount } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.7.0/dist/mathglyph.min.js';
   const lines = ['Every proof starts', 'with a *good* guess'];  // *stars* highlight a word
   mount(document.getElementById('hero'), { lines, palette: 'ice' });
 </script>
@@ -123,6 +123,27 @@ mount(document.getElementById('hero'), {
 
 The intro decodes to plain text. On hover or touch, the characters near the pointer turn into glyphs and stay so while the pointer is over the text. When the pointer has been away for `revert` seconds (default 0, so at once), the glyphs settle back to their letters in a short wave from left to right, and the slots narrow. The pointer is away when it leaves the text or the window, when the window loses focus, or when the page is hidden. A change of options while the pointer is away also ends in plain text. The next hover picks new glyphs.
 
+### Idle motion
+
+```js
+mount(document.getElementById('hero'), {
+  lines: ['every letter is a *variable*', 'and every word, a small *proof*'],
+  idle: { mode: 'shuffle', every: 1.5, amount: 0.1 },  // letters swap by themselves while the pointer is away
+});
+```
+
+`idle` moves the text while the pointer is away. It is off by default (`idle: false`), and then it adds no timer and no frame.
+
+| Setting | Default | What it does |
+|---|---|---|
+| `mode` | `'shuffle'` | `'shuffle'`: random letters swap by themselves, as under the pointer, with the palette, the boxes and the labels. With `rest: 'plain'`, they go back to plain after. `'wander'`: a slow virtual pointer drifts over the text and runs the effect, as in the demo's [showreel](https://8xb300.github.io/mathglyph/?showreel). |
+| `every` | `1.5` | `'shuffle'`: seconds between two swaps. `'wander'`: the pace. The point crosses the text in about 5 × `every` seconds. |
+| `amount` | `0.1` | `'shuffle'`: the share of letters that swap each time, from 0 to 1. |
+
+The pointer takes over at once. Idle motion comes back 1.2 s after the pointer leaves. With `rest: 'plain'`, it comes back 1.2 s after the text is plain again. Idle motion stops while the text is off screen or the tab is hidden, and with `prefers-reduced-motion: reduce` or `motion: 'still'` it does not run. It works with every layout, effect, stack, palette, symbol set and script. Between two shuffles, the frame loop stops, and one timer starts it again.
+
+`motion: 'always'` is a shortcut for `idle: { mode: 'shuffle', every: 0.18, amount: 0.025 }`. It also runs the effect with a slow wandering point, as before.
+
 ### Anchor
 
 ```js
@@ -157,13 +178,13 @@ Put the plain text in the element, as in the first Quick start example. `mount` 
 
 ## Effects
 
-`effect` sets what the pointer does. The `motion` option sets when it runs: `'hover'` runs it where the pointer is, `'always'` also runs it with a slow wandering point while the pointer is away, and `'still'` never runs it. With `prefers-reduced-motion: reduce`, no effect runs.
+`effect` sets what the pointer does. The `motion` option sets when it runs: `'hover'` runs it where the pointer is, `'always'` also runs it with a slow wandering point while the pointer is away, and `'still'` never runs it. `idle: { mode: 'wander' }` also runs it while the pointer is away (see [Idle motion](#idle-motion)). With `prefers-reduced-motion: reduce`, no effect runs.
 
 `'breathe'` is built in. The others are [modules](#modules): import them and pass them to `register` first. v0.5.0 removed `'wave'`: a page that still asks for it gets `'breathe'` and one console warning. Give settings with the name:
 
 ```js
-import { mount, register } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/mathglyph.min.js';
-import { ripple } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/effects/ripple.min.js';
+import { mount, register } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.7.0/dist/mathglyph.min.js';
+import { ripple } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.7.0/dist/effects/ripple.min.js';
 
 register(ripple);
 const fx = mount(element, { effect: 'ripple' });               // the default settings
@@ -186,7 +207,7 @@ Distances are in em: 1 em is the font size. Each effect's `speed` is multiplied 
 Give `effect` a list, and the effects run together, in the order of the list:
 
 ```js
-import { lens } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/effects/lens.min.js';
+import { lens } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.7.0/dist/effects/lens.min.js';
 
 register(ripple, lens);
 mount(element, { effect: ['ripple', { name: 'lens', strength: 0.5 }] });
@@ -266,7 +287,7 @@ An effect has these fields. Only `name` and `glyph` are required.
 |---|---|
 | `now` | The requestAnimationFrame time, in ms. |
 | `dt` | The real time since the last frame, in ms, at most 100. |
-| `pointer` | `{ x, y }` in CSS px from the top left of the canvas, or null when the pointer is not on the text. With `motion: 'always'`, a slow wandering point stands in while the pointer is away. |
+| `pointer` | `{ x, y }` in CSS px from the top left of the canvas, or null when the pointer is not on the text. With `motion: 'always'` or `idle: { mode: 'wander' }`, a slow wandering point stands in while the pointer is away. |
 | `moved` | true in frames where the pointer moved. The wandering point moves in every frame. |
 | `radius` | The hover radius in CSS px: the font size times the `hoverRadius` option. |
 | `fs`, `lineH` | The font size (1 em) and the line height, in CSS px. |
@@ -374,9 +395,9 @@ The default, `null`, is Latin only. A letter with no look-alike in the picked sc
 The core, `mathglyph.min.js`, has the `'lines'` layout and the `'breathe'` effect. Each other layout and effect is a module of its own, which exports one object with the module's name. Import the ones you use, and pass them to `register` before `mount`:
 
 ```js
-import { mount, register } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/mathglyph.min.js';
-import { ring } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/layouts/ring.min.js';
-import { firework } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/effects/firework.min.js';
+import { mount, register } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.7.0/dist/mathglyph.min.js';
+import { ring } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.7.0/dist/layouts/ring.min.js';
+import { firework } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.7.0/dist/effects/firework.min.js';
 
 register(ring, firework);
 mount(document.getElementById('hero'), { layout: 'ring', effect: 'firework' });
@@ -385,7 +406,7 @@ mount(document.getElementById('hero'), { layout: 'ring', effect: 'firework' });
 With a plain script tag, load the all-in-one build. It has every layout and effect registered, and the Greek, Cyrillic and CJK tables:
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/mathglyph.all.iife.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.7.0/dist/mathglyph.all.iife.min.js"></script>
 <script>
   MathGlyph.mount(document.getElementById('hero'), { layout: 'ring', effect: 'firework' });
 </script>
@@ -400,18 +421,18 @@ Gzipped: zlib level 9, as `npm run build` prints.
 <!-- numbers: sizes -->
 | File | What it holds | Minified | Gzipped |
 |---|---|--:|--:|
-| [`mathglyph.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/mathglyph.min.js) | The core, as an ES module: `mount`, `register`, the tables, `'lines'` and `'breathe'`. | 30,814 B | 14,145 B |
-| [`mathglyph.iife.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/mathglyph.iife.min.js) | The core for a script tag, on the global `MathGlyph`, with the Greek, Cyrillic and CJK tables. | 32,999 B | 15,537 B |
-| [`mathglyph.all.iife.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/mathglyph.all.iife.min.js) | The script-tag build with every layout and effect registered. | 43,282 B | 19,970 B |
-| [`languages.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/languages.min.js) | The Greek, Cyrillic and CJK look-alike tables. | 1,762 B | 1,086 B |
-| [`layouts/columns.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/layouts/columns.min.js) | The `'columns'` layout. | 1,305 B | 700 B |
-| [`layouts/grid.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/layouts/grid.min.js) | The `'grid'` layout. | 1,920 B | 999 B |
-| [`layouts/ring.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/layouts/ring.min.js) | The `'ring'` layout. | 1,027 B | 544 B |
-| [`effects/ripple.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/effects/ripple.min.js) | The `'ripple'` effect. | 1,116 B | 714 B |
-| [`effects/firework.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/effects/firework.min.js) | The `'firework'` effect. | 1,378 B | 826 B |
-| [`effects/lens.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/effects/lens.min.js) | The `'lens'` effect. | 1,040 B | 648 B |
-| [`effects/cascade.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/effects/cascade.min.js) | The `'cascade'` effect. | 995 B | 611 B |
-| [`effects/shatter.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/effects/shatter.min.js) | The `'shatter'` effect. | 1,951 B | 1,170 B |
+| [`mathglyph.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.7.0/dist/mathglyph.min.js) | The core, as an ES module: `mount`, `register`, the tables, `'lines'` and `'breathe'`. | 31,437 B | 14,377 B |
+| [`mathglyph.iife.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.7.0/dist/mathglyph.iife.min.js) | The core for a script tag, on the global `MathGlyph`, with the Greek, Cyrillic and CJK tables. | 33,622 B | 15,772 B |
+| [`mathglyph.all.iife.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.7.0/dist/mathglyph.all.iife.min.js) | The script-tag build with every layout and effect registered. | 43,911 B | 20,186 B |
+| [`languages.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.7.0/dist/languages.min.js) | The Greek, Cyrillic and CJK look-alike tables. | 1,762 B | 1,086 B |
+| [`layouts/columns.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.7.0/dist/layouts/columns.min.js) | The `'columns'` layout. | 1,305 B | 700 B |
+| [`layouts/grid.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.7.0/dist/layouts/grid.min.js) | The `'grid'` layout. | 1,920 B | 999 B |
+| [`layouts/ring.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.7.0/dist/layouts/ring.min.js) | The `'ring'` layout. | 1,027 B | 544 B |
+| [`effects/ripple.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.7.0/dist/effects/ripple.min.js) | The `'ripple'` effect. | 1,116 B | 714 B |
+| [`effects/firework.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.7.0/dist/effects/firework.min.js) | The `'firework'` effect. | 1,378 B | 826 B |
+| [`effects/lens.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.7.0/dist/effects/lens.min.js) | The `'lens'` effect. | 1,040 B | 648 B |
+| [`effects/cascade.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.7.0/dist/effects/cascade.min.js) | The `'cascade'` effect. | 995 B | 611 B |
+| [`effects/shatter.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.7.0/dist/effects/shatter.min.js) | The `'shatter'` effect. | 1,951 B | 1,170 B |
 
 ### Package exports
 
@@ -451,7 +472,8 @@ Every option has a default. Pass any of them to `mount`, or change them later wi
 | `lookalikes` | `null` | Extra look-alikes, `{ char: 'glyphs' }`, merged over the built-in Latin table. Also how you plug in the Greek, Cyrillic and CJK tables. See [Languages](#languages). |
 | `words` | `0.7` | How often words with a symbol meaning swap whole. Needs `expand`. |
 | `wordMap` | `null` | Extra word → symbol pairs, merged over the English map. |
-| `motion` | `'hover'` | When the effect runs. `'hover'`: where the pointer is. `'always'`: also with a slow wandering point while the pointer is away, and with a slow reshuffle. `'still'`: no animation. |
+| `motion` | `'hover'` | When the effect runs. `'hover'`: where the pointer is. `'always'`: also with a slow wandering point while the pointer is away, and a shortcut for `idle: { mode: 'shuffle', every: 0.18, amount: 0.025 }`. `'still'`: no animation. |
+| `idle` | `false` | Motion while the pointer is away: `{ mode, every, amount }`. `mode` is `'shuffle'` (letters swap by themselves) or `'wander'` (a virtual pointer drifts over the text). See [Idle motion](#idle-motion). |
 | `rest` | `'glyphs'` | `'glyphs'`: some letters show glyphs at rest. `'plain'`: plain text at rest, glyphs only where the pointer touched. See [Plain at rest](#plain-at-rest). |
 | `revert` | `0` | With `rest: 'plain'`: seconds after the pointer leaves before the text goes back to plain. |
 | `anchor` | `null` | A word that never changes and never moves: a string pins its first match (a whole word if there is one), `true` the first *highlighted* word. See [Anchor](#anchor). |
@@ -553,7 +575,7 @@ The module also exports its built-in tables:
 Use them to build on the defaults:
 
 ```js
-import { mount, sets, palettes } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/mathglyph.min.js';
+import { mount, sets, palettes } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.7.0/dist/mathglyph.min.js';
 
 mount(element, {
   symbols: Object.keys(sets).filter((name) => name !== 'greek'),  // every group but Greek
@@ -594,7 +616,7 @@ fx.resume();
 | `on(event, fn)` | Calls `fn` at each `event`, `'wake'` or `'settle'`. Returns a function that removes the listener. |
 | `off(event, fn)` | Removes a listener that `on()` added. |
 
-`'wake'` comes when the frame loop starts to run frame after frame. `'settle'` comes when it stops because nothing moves. The events also come in the frames that `step()` runs. When the loop stops because the text is off screen, the tab is hidden or you call `pause()`, no event comes. With `motion: 'always'`, the loop runs on while the text is on screen, and `'settle'` does not come.
+`'wake'` comes when the frame loop starts to run frame after frame. `'settle'` comes when it stops because nothing moves. The events also come in the frames that `step()` runs. When the loop stops because the text is off screen, the tab is hidden or you call `pause()`, no event comes. With `motion: 'always'` or `idle: { mode: 'wander' }`, the loop runs on while the text is on screen, and `'settle'` does not come. With `idle: { mode: 'shuffle' }`, `'wake'` and `'settle'` come once for each shuffle.
 
 With `prefers-reduced-motion: reduce` or `motion: 'still'`, `burst()` and `setPointer()` do nothing. The hooks add no timer. A call can start the frame loop, and the loop stops again when nothing moves, so nothing runs while idle.
 
@@ -651,8 +673,8 @@ Lines are split into grapheme clusters with `Intl.Segmenter`, so any script work
 The built-in look-alike table covers Latin. Greek, Cyrillic and CJK tables ship as a separate module, `dist/languages.min.js` (about 1 KB gzipped), so pages that don't need them don't load them. Plug them in with `lookalikes`:
 
 ```js
-import { mount } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/mathglyph.min.js';
-import { greek, cyrillic } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/languages.min.js';
+import { mount } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.7.0/dist/mathglyph.min.js';
+import { greek, cyrillic } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.7.0/dist/languages.min.js';
 
 mount(element, {
   lines: ['каждый знак — *переменная*'],
@@ -671,9 +693,9 @@ Greek letters also get math-alphabet Greek (𝛂 𝜷 𝝅), with or without the
 Chinese, Japanese and Korean are sometimes written in vertical columns, and the `'columns'` layout is made for them. Keep the text short, give each column a few characters, and let `fit` choose a large font:
 
 ```js
-import { mount, register } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/mathglyph.min.js';
-import { columns } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/layouts/columns.min.js';
-import { cjk } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/languages.min.js';
+import { mount, register } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.7.0/dist/mathglyph.min.js';
+import { columns } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.7.0/dist/layouts/columns.min.js';
+import { cjk } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.7.0/dist/languages.min.js';
 
 register(columns);
 mount(element, {
@@ -724,7 +746,7 @@ What does not work:
 
 ## Performance
 
-- **No work at rest.** When nothing animates, no timers run. The effect also pauses when it is off screen (IntersectionObserver) and when the tab is hidden.
+- **No work at rest.** When nothing animates, no timers run. The effect also pauses when it is off screen (IntersectionObserver) and when the tab is hidden. With the `idle` option, idle motion pauses in the same way.
 - **No layout reads in the animation loop.** Glyph widths and slot geometry are cached, and updated only on resize and when a font loads.
 - **One `requestAnimationFrame` loop** drives the animation. It stops as soon as the last glyph settles.
 - **One canvas, and only changed lines are redrawn.** Screen readers get a visually hidden copy of the text (see [Accessibility](#accessibility)).
@@ -761,7 +783,17 @@ The same hover test with each effect, in the `'lines'` layout (v0.4.0, and the s
 | `'shatter'` | 4.25 ms | 37% | 0 |
 | `['ripple', 'lens']`, stacked | 4.60 ms | 40% | 0 |
 
-The stacked row is from v0.6.1. In the same run, on the same machine, `'ripple'` alone took 3.22 ms and `'lens'` alone 3.91 ms. `node bench/run.mjs effects ripple lens ripple,lens` runs these three.
+With the `idle` option, over the same 2,000 characters with no input, for 5 s (v0.7.0, default settings, `node bench/run.mjs idle`):
+
+| | Timer and frame wakeups | Main-thread time per wakeup | Main-thread time per second | Browser CPU |
+|---|--:|--:|--:|--:|
+| `idle: { mode: 'shuffle' }` | 178 | 4.42 ms | 162 ms | 24% |
+| `idle: { mode: 'wander' }`, with `'breathe'` | 301 | 2.70 ms | 163 ms | 26% |
+| `motion: 'always'` | 300 | 4.92 ms | 295 ms | 44% |
+
+A shuffle of 10% of 2,000 letters keeps the loop running for about 1.2 s of every 1.5 s. Off screen and in a hidden tab, every row has 0 wakeups.
+
+The stacked row of the effects table is from v0.6.1. In the same run, on the same machine, `'ripple'` alone took 3.22 ms and `'lens'` alone 3.91 ms. `node bench/run.mjs effects ripple lens ripple,lens` runs these three.
 
 To run the benchmark: `npm install && npm run build`, then `npm install --no-save playwright && npx playwright install chromium && node bench/run.mjs`. `node bench/run.mjs effects` runs the hover test once per effect. `node bench/plain.mjs` checks that the demo, and every layout with every effect, go back to plain text with `rest: 'plain'` and then stop.
 

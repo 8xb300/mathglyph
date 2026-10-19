@@ -3,6 +3,7 @@
 //
 //   node bench/run.mjs [original] [canvas] [--runs=3] [--chars=2000]
 //   node bench/run.mjs effects [breathe] [ripple] [ripple,lens] ... [--runs=3] [--chars=2000]
+//   node bench/run.mjs idle [--runs=3] [--chars=2000]
 //
 // effects: only the hover test, once per effect (default: breathe, every module in dist/effects, and
 // the stack ripple,lens). Names with commas are a stack, in the bench page's effects syntax.
@@ -193,6 +194,59 @@ async function idleTest(browser, url) {
   return { idleWakeups: after.wakeups - before.wakeups, idleCpu: cpuPercent(before, after) };
 }
 
+// No input: the idle option moves the text by itself. Starts after its first 1.2 s.
+async function idleMotionTest(browser, url) {
+  const page = await openPage(browser, url);
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Performance.enable');
+  await sleep(2000);
+  const metricsBefore = await metrics(cdp);
+  const before = await sample(page);
+  await sleep(HOVER_MS);
+  const after = await sample(page);
+  const metricsAfter = await metrics(cdp);
+  await page.close();
+  const wakeups = after.wakeups - before.wakeups;
+  const mainMs = (metricsAfter.TaskDuration - metricsBefore.TaskDuration) * 1000;
+  return { wakeups, mainMsPerWakeup: mainMs / wakeups, mainMsPerSecond: mainMs / (HOVER_MS / 1000), cpu: cpuPercent(before, after) };
+}
+
+async function idleMain(runs, chars) {
+  const modes = { 'idle shuffle': { mode: 'shuffle' }, 'idle wander': { mode: 'wander' }, "motion 'always'": null };
+  const server = await serveRepo();
+  const all = Object.fromEntries(Object.keys(modes).map((name) => [name, []]));
+  let version;
+  try {
+    for (let run = 1; run <= runs; run++) {
+      const browser = await chromium.launch();
+      try {
+        version = browser.version();
+        for (const [name, idle] of Object.entries(modes)) {
+          console.error(`run ${run} of ${runs}: ${name}`);
+          const query = idle ? `options=${encodeURIComponent(JSON.stringify({ idle }))}` : 'motion=always';
+          all[name].push(await idleMotionTest(browser, `http://127.0.0.1:${server.address().port}/bench/page.html?impl=canvas&chars=${chars}&${query}`));
+        }
+      } finally {
+        await browser.close();
+      }
+    }
+  } finally {
+    server.close();
+  }
+  const out = [
+    `**Idle motion**: ${HOVER_MS / 1000} s with no input, ${chars.toLocaleString('en-US')} characters, default settings.`,
+    '',
+    '| | wakeups | main thread / wakeup | main thread / s | CPU |',
+    '|---|--:|--:|--:|--:|',
+  ];
+  for (const [name, results] of Object.entries(all)) {
+    const m = Object.fromEntries(Object.keys(results[0]).map((key) => [key, median(results.map((result) => result[key]))]));
+    out.push(`| ${name} | ${Math.round(m.wakeups)} | ${m.mainMsPerWakeup.toFixed(2)} ms | ${m.mainMsPerSecond.toFixed(1)} ms | ${m.cpu.toFixed(1)} % |`);
+  }
+  out.push('', `Median of ${runs} runs on ${os.type()} ${os.machine()}, headless Chromium ${version}.`);
+  console.log(out.join('\n'));
+}
+
 // The page has a tall spacer below the text, so scrolling to the end hides the text.
 async function offscreenTest(browser, url) {
   const page = await openPage(browser, url);
@@ -326,6 +380,10 @@ async function main() {
   const runs = option('runs', 3);
   const chars = option('chars', 2000);
   const asked = args.filter((arg) => !arg.startsWith('--'));
+  if (asked[0] === 'idle') {
+    await idleMain(runs, chars);
+    return;
+  }
   if (asked[0] === 'effects') {
     writeOriginal();
     await effectsMain(asked.slice(1), runs, chars);

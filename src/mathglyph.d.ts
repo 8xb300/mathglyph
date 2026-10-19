@@ -92,13 +92,26 @@ export interface GlyphOut {
   paint: boolean;
 }
 
+/** The `idle` option. */
+export interface Idle {
+  /**
+   * 'shuffle' (default): random letters swap by themselves, as under the pointer. With rest: 'plain'
+   * they go back to plain. 'wander': a slow virtual pointer drifts over the text and runs the effect.
+   */
+  mode?: 'shuffle' | 'wander';
+  /** 'shuffle': seconds between swaps. 'wander': the pace; the point crosses the text in about 5 × every seconds. Default 1.5. */
+  every?: number;
+  /** 'shuffle': the share of letters that swap each time, 0 to 1. Default 0.1. */
+  amount?: number;
+}
+
 /** What an effect gets in each frame. */
 export interface EffectFrame {
   /** requestAnimationFrame time, ms. */
   now: number;
   /** Real time since the last frame, ms, at most 100. */
   dt: number;
-  /** The pointer, or null when it is not on the text. With motion: 'always' a slow wandering point stands in. */
+  /** The pointer, or null when it is not on the text. With motion: 'always' or idle: { mode: 'wander' } a slow wandering point stands in. */
   pointer: Point | null;
   /** true in frames where the pointer moved. */
   moved: boolean;
@@ -278,7 +291,18 @@ export interface Options {
   lookalikes?: Record<string, string> | null;
   words?: number;
   wordMap?: Record<string, string> | null;
+  /**
+   * When the effect runs. 'hover': where the pointer is. 'always': also with a slow wandering point
+   * while the pointer is away, and a shortcut for idle: { mode: 'shuffle', every: 0.18, amount: 0.025 }.
+   * 'still': no animation.
+   */
   motion?: 'hover' | 'always' | 'still';
+  /**
+   * Motion while the pointer is away. Default false: none, and no timer or frame for it. The pointer
+   * takes over at once, and idle motion comes back 1.2 s after it leaves (with rest: 'plain', after
+   * the revert). It stops off screen, in a hidden tab, and with reduced motion or motion: 'still'.
+   */
+  idle?: false | Idle;
   /** 'glyphs': glyphs at rest. 'plain': plain text at rest, glyphs only where the pointer touches. */
   rest?: 'glyphs' | 'plain';
   /** With rest: 'plain', seconds after the pointer leaves before the text goes back to plain. Default 0: at once. */

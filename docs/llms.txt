@@ -1,6 +1,6 @@
 # mathglyph
 
-> mathglyph is a small, dependency-free text effect for websites. It draws monospace text on one canvas. Letters swap to math glyphs (𝕋 𝒢 ∃ ⊗) and move under the pointer. Version 0.6.2, MIT licence.
+> mathglyph is a small, dependency-free text effect for websites. It draws monospace text on one canvas. Letters swap to math glyphs (𝕋 𝒢 ∃ ⊗) and move under the pointer. Version 0.7.0, MIT licence.
 
 Use it for hero headlines, 404 pages and titles. The element keeps its plain text for screen readers, search engines and visitors without JavaScript. Install it from npm, or load it from jsDelivr.
 
@@ -26,7 +26,7 @@ mount(document.getElementById('hero'), { lines: ['Every proof starts', 'with a *
 No build step: load it from jsDelivr with a script tag. The same exports are on the global `MathGlyph`.
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/mathglyph.iife.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.7.0/dist/mathglyph.iife.min.js"></script>
 ```
 
 Deno: `import { mount } from "npm:mathglyph";`
@@ -45,19 +45,19 @@ Types are in the package: `dist/mathglyph.d.ts`, and each module has its own `.d
 ES module from the CDN (the core has the `lines` layout and the `breathe` effect):
 
 ```js
-import { mount, register } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/mathglyph.min.js';
+import { mount, register } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.7.0/dist/mathglyph.min.js';
 ```
 
 Script tag, with the global `MathGlyph` (it also has `MathGlyph.greek`, `MathGlyph.cyrillic` and `MathGlyph.cjk`):
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/mathglyph.iife.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.7.0/dist/mathglyph.iife.min.js"></script>
 ```
 
 Script tag with every layout and effect already registered:
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/mathglyph.all.iife.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.7.0/dist/mathglyph.all.iife.min.js"></script>
 ```
 
 
@@ -68,7 +68,7 @@ Put the plain text in the element. `mount` replaces it with the effect. Without 
 ```html
 <h1 id="hero">Every proof starts with a good guess</h1>
 <script type="module">
-  import { mount } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/mathglyph.min.js';
+  import { mount } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.7.0/dist/mathglyph.min.js';
   const lines = ['Every proof starts', 'with a *good* guess'];
   mount(document.getElementById('hero'), { lines, palette: 'ice' });
 </script>
@@ -119,7 +119,8 @@ Every option has a default. Pass any of them to `mount`, or to `update`. Shares 
 - `lookalikes`: object | null, default `null`. Extra look-alikes, `{ char: 'glyphs' }`. This is also how you plug in the Greek, Cyrillic and CJK tables.
 - `words`: number, default `0.7`. How often words with a symbol meaning swap whole (and → ∧, therefore → ∴). Needs `expand`.
 - `wordMap`: object | null, default `null`. Extra word → symbol pairs, merged over the English map.
-- `motion`: `'hover'` | `'always'` | `'still'`, default `'hover'`. When the effect runs. `'always'` also runs it with a slow wandering point and a slow reshuffle. `'still'` has no animation.
+- `motion`: `'hover'` | `'always'` | `'still'`, default `'hover'`. When the effect runs. `'always'` also runs it with a slow wandering point, and is a shortcut for `idle: { mode: 'shuffle', every: 0.18, amount: 0.025 }`. `'still'` has no animation.
+- `idle`: false | `{ mode, every, amount }`, default `false`. Motion while the pointer is away. `mode: 'shuffle'` (default): random letters swap by themselves, every `every` seconds (default 1.5), a share `amount` of the letters each time (default 0.1). With `rest: 'plain'` they go back to plain. `mode: 'wander'`: a slow virtual pointer drifts over the text and runs the effect. It crosses the text in about 5 × `every` seconds. The pointer takes over at once, and idle motion comes back 1.2 s after it leaves (with `rest: 'plain'`, after the text is plain again). It stops off screen, in a hidden tab, and with reduced motion. Example: `mount(el, { idle: { mode: 'wander' } })`.
 - `rest`: `'glyphs'` | `'plain'`, default `'glyphs'`. `'plain'`: plain text at rest, glyphs only where the pointer touched.
 - `revert`: number (seconds), default `0`. With `rest: 'plain'`, how long after the pointer leaves before the text goes back to plain.
 - `anchor`: string | true | null, default `null`. A word that never changes and never moves. A string pins its first match. `true` pins the first highlighted word.
@@ -141,8 +142,8 @@ Every option has a default. Pass any of them to `mount`, or to `update`. Shares 
 `'lines'` is built in. The others are modules: import them and call `register` before `mount`.
 
 ```js
-import { mount, register } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/mathglyph.min.js';
-import { ring } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/layouts/ring.min.js';
+import { mount, register } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.7.0/dist/mathglyph.min.js';
+import { ring } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.7.0/dist/layouts/ring.min.js';
 
 register(ring);
 mount(document.getElementById('hero'), { layout: { name: 'ring', gap: 2 }, lines: ['every letter goes *round*'] });
@@ -160,8 +161,8 @@ Modules are at `dist/layouts/<name>.min.js` and `dist/effects/<name>.min.js`, an
 `effect` sets what the pointer does. `'breathe'` is built in. The others are modules, registered like layouts. Each effect's `speed` is multiplied by the `speed` option. With `prefers-reduced-motion: reduce`, no effect runs.
 
 ```js
-import { mount, register } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/mathglyph.min.js';
-import { ripple } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/effects/ripple.min.js';
+import { mount, register } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.7.0/dist/mathglyph.min.js';
+import { ripple } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.7.0/dist/effects/ripple.min.js';
 
 register(ripple);
 const fx = mount(element, { effect: 'ripple' });
@@ -180,7 +181,7 @@ The `radius`, `gap`, `power`, `fall` and `scatter` settings are in em.
 Give `effect` an array to run several effects together, in order. Their offsets and rotations add, their scales and opacities multiply, and any of them can swap a glyph. `strength` (0 to 1, default 1) scales what one effect does, and its swaps count for that share of the glyphs. One effect with a `strength` is a stack of one. An effect without `frame()`, like `'breathe'`, runs in a stack only in frames where the pointer moved, and only its swaps count.
 
 ```js
-import { lens } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/effects/lens.min.js';
+import { lens } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.7.0/dist/effects/lens.min.js';
 
 register(ripple, lens);
 mount(element, { effect: ['ripple', { name: 'lens', strength: 0.5 }] });
@@ -266,7 +267,7 @@ mount(element, { fonts: [{ family: 'Noto Sans Math', url: '/your/path/noto-sans-
 Text is split into grapheme clusters with `Intl.Segmenter`, so any script and emoji work. For Greek, Cyrillic and CJK text, plug in the look-alike tables:
 
 ```js
-import { greek, cyrillic } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/languages.min.js';
+import { greek, cyrillic } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.7.0/dist/languages.min.js';
 
 mount(element, { lines: ['каждый знак — *переменная*'], lookalikes: { ...greek, ...cyrillic } });
 ```
@@ -285,5 +286,5 @@ mount(element, { lines: ['каждый знак — *переменная*'], lo
 
 - README with the full documentation: https://github.com/8xb300/mathglyph#readme
 - Live demo: https://8xb300.github.io/mathglyph/
-- Types: https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/mathglyph.d.ts
+- Types: https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.7.0/dist/mathglyph.d.ts
 - Contributing: https://github.com/8xb300/mathglyph/blob/main/CONTRIBUTING.md

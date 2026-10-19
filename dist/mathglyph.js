@@ -345,6 +345,7 @@ var DEFAULTS = {
   words: 0.7,
   wordMap: null,
   motion: "hover",
+  idle: false,
   rest: "glyphs",
   revert: 0,
   anchor: null,
@@ -377,6 +378,7 @@ var FADE_MS = 80;
 var REVERT_WAVE_MS = 700;
 var RELEASE_MS = 200;
 var BURST_MS = 400;
+var IDLE_MS = 1200;
 var segmenter = typeof Intl !== "undefined" && Intl.Segmenter ? new Intl.Segmenter(void 0, { granularity: "grapheme" }) : null;
 function graphemes(s) {
   return segmenter ? Array.from(segmenter.segment(s), function(x) {
@@ -526,7 +528,8 @@ function mount(root, options) {
   var pad = 0, padPx = 0, labelSize = 8, fontPx = "", labelPx = "";
   var fx, F = { state: {} }, OUT = {}, fxCells = [], fxLast = [], fxOn = false, releaseStart = 0, ease = 1;
   var lay, M = { state: {} }, layBusy = false, area = { x: 0, y: 0, w: 0, h: 0 }, wander = { x: 0, y: 0 };
-  var decoding = false, decodeStart = 0, idleAcc = 0, lastTick = 0, lastFrame = 0;
+  var decoding = false, decodeStart = 0, lastTick = 0, lastFrame = 0;
+  var idle = null, idleNow = false, idleAt = 0, idleTimer = 0;
   var reverting = [], revertStart = 0, revertTimer = 0;
   var raf = 0, dead = false, onScreen = true, needMeasure = false, needLayout = false;
   var pointer = null, pointerMoved = false, rect = null;
@@ -1316,8 +1319,11 @@ function mount(root, options) {
   function active() {
     return !dead && !paused && onScreen && !document.hidden;
   }
+  function wandering() {
+    return idleNow && idle.mode === "wander";
+  }
   function busy() {
-    return moving.length || hot.length || decoding || reverting.length || fxOn || fxCells.length || layBusy || burstAt || burstEnd || o.motion === "always" && animated();
+    return moving.length || hot.length || decoding || reverting.length || fxOn || fxCells.length || layBusy || burstAt || burstEnd || o.motion === "always" && animated() || wandering();
   }
   function wake() {
     if (!raf && active()) raf = win.requestAnimationFrame(frame);
@@ -1331,13 +1337,15 @@ function mount(root, options) {
   function run(now, dt) {
     if (needMeasure) measure();
     if (needLayout) layout();
+    idleNow = idling(now);
     if (animated()) runEffect(now, dt);
+    if (idleNow && idle.mode !== "wander" && now >= idleAt) shuffle(now);
     if (burstAt) endBurst(now);
     if (burstEnd && now >= burstEnd) {
       burstEnd = 0;
       if (!pointer) scheduleRevert();
     }
-    if (animated() && (hot.length || decoding || reverting.length || o.motion === "always")) {
+    if (animated() && (hot.length || decoding || reverting.length)) {
       if (!lastTick || now - lastTick > 4 * TICK) lastTick = now - TICK;
       while (now - lastTick >= TICK) {
         lastTick += TICK;
@@ -1352,6 +1360,11 @@ function mount(root, options) {
     flush();
     M.dt = 0;
     lastFrame = busy() ? now : 0;
+    if (idleTimer) {
+      win.clearTimeout(idleTimer);
+      idleTimer = 0;
+    }
+    if (!lastFrame && idleAt && !paused) idleTimer = win.setTimeout(wake, Math.max(0, idleAt - now));
     if (lastFrame && !running) {
       running = true;
       emit("wake");
@@ -1426,15 +1439,26 @@ function mount(root, options) {
       if (done) decoding = false;
       return;
     }
-    if (o.motion !== "always" || reduce || !cells.length) return;
-    idleAcc += 60 * o.speed;
-    if (idleAcc < 180) return;
-    idleAcc = 0;
-    var n = Math.max(1, Math.round(cells.length * 0.025));
-    for (var k = 0; k < n; k++) {
-      var r = pick(cells);
-      if (!r.hot) refresh(r, false);
+  }
+  function useIdle() {
+    idle = o.idle ? Object.assign({ mode: "shuffle", every: 1.5, amount: 0.1 }, o.idle) : o.motion === "always" ? { mode: "shuffle", every: 0.18, amount: 0.025 } : null;
+    if (!idle) idleAt = 0;
+  }
+  function idling(now) {
+    if (!idle || !animated() || pointer || burstAt || burstEnd || decoding || reverting.length || revertTimer || !cells.length) {
+      idleAt = 0;
+      return false;
     }
+    if (!idleAt) idleAt = now + IDLE_MS;
+    return now >= idleAt;
+  }
+  function shuffle(now) {
+    var n = Math.max(1, Math.round(cells.length * Math.min(1, idle.amount)));
+    for (var k = 0; k < n; k++) {
+      var c = pick(cells);
+      if (!c.anchor && c.ch !== " ") swap(c, now);
+    }
+    idleAt = now + Math.max(0.05, idle.every) * 1e3 / Math.max(o.speed, 0.25);
   }
   function setFrame(now, dt, p, moved) {
     F.now = now;
@@ -1459,22 +1483,28 @@ function mount(root, options) {
     if (OUT.swap) swap(c, F.now);
   }
   function swap(c, now) {
-    if (!pointer && !burstEnd && o.rest === "plain") return;
-    wakeCell(c);
+    if (!idleNow) {
+      if (!pointer && !burstEnd && o.rest === "plain") return;
+      wakeCell(c);
+    }
     c.hot = now + 260 / Math.max(o.speed, 0.25);
     if (!c.inHot) {
       c.inHot = true;
       hot.push(c);
     }
   }
-  function wanderAt(now) {
-    var t = now / 1e3 * Math.max(o.speed, 0.25);
-    wander.x = area.x + area.w * (0.5 + 0.5 * Math.sin(t * 0.43));
-    wander.y = area.y + area.h * (0.5 + 0.5 * Math.sin(t * 0.71 + 1));
+  function wanderAt(now, rate) {
+    var t = now / 1e3 * Math.max(o.speed, 0.25) * rate;
+    wander.x = area.x + area.w * (0.5 + 0.5 * Math.sin(t));
+    wander.y = area.y + area.h * (0.5 + 0.5 * Math.sin(t * 1.65 + 1));
     return wander;
   }
   function runEffect(now, dt) {
     var p = pointer, pm = pointerMoved, i, c;
+    if (!p && wandering()) {
+      p = wanderAt(now, 0.65 / Math.max(0.05, idle.every));
+      pm = true;
+    }
     if (!fx.frame) {
       if (!p || !pm) return;
       pointerMoved = false;
@@ -1484,7 +1514,7 @@ function mount(root, options) {
     }
     pointerMoved = false;
     if (!p && o.motion === "always") {
-      p = wanderAt(now);
+      p = wanderAt(now, 0.43);
       pm = true;
     }
     setFrame(now, dt, p, pm);
@@ -1583,7 +1613,7 @@ function mount(root, options) {
         for (var k = 0; k < subs.length; k++) {
           var s = subs[k];
           use(s);
-          s.on = s.mod.frame ? !!s.mod.frame(f) : !!(pointer && f.moved);
+          s.on = s.mod.frame ? !!s.mod.frame(f) : !!((pointer || wandering()) && f.moved);
           if (s.on) any = true;
         }
         return any;
@@ -1658,6 +1688,10 @@ function mount(root, options) {
       win.cancelAnimationFrame(raf);
       raf = 0;
     }
+    if (idleTimer) {
+      win.clearTimeout(idleTimer);
+      idleTimer = 0;
+    }
   }
   function resume() {
     if (!paused) return;
@@ -1695,6 +1729,7 @@ function mount(root, options) {
     pointer = null;
     rect = null;
     scheduleRevert();
+    if (idle) wake();
   }
   function onOut(e) {
     if (!e.relatedTarget) onLeave();
@@ -1758,6 +1793,7 @@ function mount(root, options) {
     var rebuild = linesChanged || "wordMap" in next || "anchor" in next;
     var refont = "font" in next && next.font !== o.font || "fonts" in next;
     Object.assign(o, next);
+    useIdle();
     if ("effect" in next) useEffect();
     if ("layout" in next) useLayout();
     if ("rest" in next || !animated()) {
@@ -1797,6 +1833,7 @@ function mount(root, options) {
     dead = true;
     cancelRevert();
     if (raf) win.cancelAnimationFrame(raf);
+    if (idleTimer) win.clearTimeout(idleTimer);
     if (io) io.disconnect();
     if (ro) ro.disconnect();
     root.removeEventListener("pointermove", onMove);
@@ -1816,6 +1853,7 @@ function mount(root, options) {
     });
   }
   tables();
+  useIdle();
   useEffect();
   useLayout();
   renderer = canvasRenderer();

@@ -167,6 +167,7 @@ var DEFAULTS = {
   words: 0.7,
   wordMap: null,
   motion: 'hover',
+  idle: false,
   rest: 'glyphs',
   revert: 0,
   anchor: null,
@@ -201,6 +202,7 @@ var FADE_MS = 80;    // crossfade from the old glyph to the new one
 var REVERT_WAVE_MS = 700;  // spread of the staggered wave back to plain, ms
 var RELEASE_MS = 200;      // what an effect moved eases back to rest in this long once frame() returns false
 var BURST_MS = 400;        // after burst(), swaps still count this long, as if the pointer had stayed
+var IDLE_MS = 1200;        // idle motion comes back this long after the pointer leaves, or after the revert
 
 var segmenter = typeof Intl !== 'undefined' && Intl.Segmenter
   ? new Intl.Segmenter(undefined, { granularity: 'grapheme' }) : null;
@@ -368,7 +370,10 @@ export function mount(root, options) {
   var fx, F = { state: {} }, OUT = {}, fxCells = [], fxLast = [], fxOn = false, releaseStart = 0, ease = 1;
   // The layout, and what it gets: M.
   var lay, M = { state: {} }, layBusy = false, area = { x: 0, y: 0, w: 0, h: 0 }, wander = { x: 0, y: 0 };
-  var decoding = false, decodeStart = 0, idleAcc = 0, lastTick = 0, lastFrame = 0;
+  var decoding = false, decodeStart = 0, lastTick = 0, lastFrame = 0;
+  // Idle motion: its settings, whether it runs this frame, when it may next act, and the timer
+  // that wakes the loop for that while nothing else moves.
+  var idle = null, idleNow = false, idleAt = 0, idleTimer = 0;
   var reverting = [], revertStart = 0, revertTimer = 0;
   var raf = 0, dead = false, onScreen = true, needMeasure = false, needLayout = false;
   var pointer = null, pointerMoved = false, rect = null;
@@ -1128,9 +1133,10 @@ export function mount(root, options) {
   // ---- the loop: runs only while something moves ----
   function animated() { return !reduce && o.motion !== 'still'; }
   function active() { return !dead && !paused && onScreen && !document.hidden; }
+  function wandering() { return idleNow && idle.mode === 'wander'; }
   function busy() {
     return moving.length || hot.length || decoding || reverting.length || fxOn || fxCells.length || layBusy ||
-      burstAt || burstEnd || (o.motion === 'always' && animated());
+      burstAt || burstEnd || (o.motion === 'always' && animated()) || wandering();
   }
 
   function wake() {
@@ -1148,10 +1154,12 @@ export function mount(root, options) {
   function run(now, dt) {
     if (needMeasure) measure();
     if (needLayout) layout();
+    idleNow = idling(now);
     if (animated()) runEffect(now, dt);
+    if (idleNow && idle.mode !== 'wander' && now >= idleAt) shuffle(now);
     if (burstAt) endBurst(now);
     if (burstEnd && now >= burstEnd) { burstEnd = 0; if (!pointer) scheduleRevert(); }
-    if (animated() && (hot.length || decoding || reverting.length || o.motion === 'always')) {
+    if (animated() && (hot.length || decoding || reverting.length)) {
       if (!lastTick || now - lastTick > 4 * TICK) lastTick = now - TICK;
       while (now - lastTick >= TICK) { lastTick += TICK; tick(lastTick); }
     } else {
@@ -1163,6 +1171,10 @@ export function mount(root, options) {
     flush();
     M.dt = 0;
     lastFrame = busy() ? now : 0;
+    // The loop stops between idle shuffles: one timer wakes it for the next. While the text is
+    // hidden or off screen, wake() does nothing, so the timer does not come back.
+    if (idleTimer) { win.clearTimeout(idleTimer); idleTimer = 0; }
+    if (!lastFrame && idleAt && !paused) idleTimer = win.setTimeout(wake, Math.max(0, idleAt - now));
     // A frame that leaves nothing for the next one (a resize, a font) is no wake.
     if (lastFrame && !running) { running = true; emit('wake'); }
     else if (!lastFrame && running) { running = false; emit('settle'); }
@@ -1219,13 +1231,35 @@ export function mount(root, options) {
       if (done) decoding = false;
       return;
     }
+  }
 
-    if (o.motion !== 'always' || reduce || !cells.length) return;
-    idleAcc += 60 * o.speed;
-    if (idleAcc < 180) return;
-    idleAcc = 0;
-    var n = Math.max(1, Math.round(cells.length * 0.025));
-    for (var k = 0; k < n; k++) { var r = pick(cells); if (!r.hot) refresh(r, false); }
+  // ---- idle motion: the text moves by itself while the pointer is away ----
+  // motion: 'always' with no idle option is a shuffle at the pace it always had.
+  function useIdle() {
+    idle = o.idle ? Object.assign({ mode: 'shuffle', every: 1.5, amount: 0.1 }, o.idle)
+      : o.motion === 'always' ? { mode: 'shuffle', every: 0.18, amount: 0.025 } : null;
+    if (!idle) idleAt = 0;
+  }
+
+  // Idle motion waits while anything else moves the text: the pointer, a burst, the intro, the revert.
+  function idling(now) {
+    if (!idle || !animated() || pointer || burstAt || burstEnd || decoding || reverting.length || revertTimer || !cells.length) {
+      idleAt = 0;
+      return false;
+    }
+    if (!idleAt) idleAt = now + IDLE_MS;
+    return now >= idleAt;
+  }
+
+  // Some random letters swap, as under the pointer. They do not wake, so with rest: 'plain' they
+  // go back to plain when they settle.
+  function shuffle(now) {
+    var n = Math.max(1, Math.round(cells.length * Math.min(1, idle.amount)));
+    for (var k = 0; k < n; k++) {
+      var c = pick(cells);
+      if (!c.anchor && c.ch !== ' ') swap(c, now);
+    }
+    idleAt = now + Math.max(0.05, idle.every) * 1000 / Math.max(o.speed, 0.25);
   }
 
   // ---- the effect ----
@@ -1255,23 +1289,29 @@ export function mount(root, options) {
 
   // A swap makes the glyph hot: it scrambles for a moment, then settles. With rest: 'plain' only
   // the pointer swaps (or a burst(), for a moment), so the text always gets back to plain after.
+  // Idle motion swaps too, but its glyphs do not wake, so they settle back to plain.
   function swap(c, now) {
-    if (!pointer && !burstEnd && o.rest === 'plain') return;
-    wakeCell(c);
+    if (!idleNow) {
+      if (!pointer && !burstEnd && o.rest === 'plain') return;
+      wakeCell(c);
+    }
     c.hot = now + 260 / Math.max(o.speed, 0.25);
     if (!c.inHot) { c.inHot = true; hot.push(c); }
   }
 
-  // motion: 'always': a slow point that wanders over the text while the pointer is away.
-  function wanderAt(now) {
-    var t = now / 1000 * Math.max(o.speed, 0.25);
-    wander.x = area.x + area.w * (0.5 + 0.5 * Math.sin(t * 0.43));
-    wander.y = area.y + area.h * (0.5 + 0.5 * Math.sin(t * 0.71 + 1));
+  // motion: 'always' and idle: { mode: 'wander' }: a slow point that wanders over the text while
+  // the pointer is away. It crosses the text in about pi / rate seconds.
+  function wanderAt(now, rate) {
+    var t = now / 1000 * Math.max(o.speed, 0.25) * rate;
+    wander.x = area.x + area.w * (0.5 + 0.5 * Math.sin(t));
+    wander.y = area.y + area.h * (0.5 + 0.5 * Math.sin(t * 1.65 + 1));
     return wander;
   }
 
   function runEffect(now, dt) {
     var p = pointer, pm = pointerMoved, i, c;
+    // Wander acts as a pointer for every effect, also one without frame().
+    if (!p && wandering()) { p = wanderAt(now, 0.65 / Math.max(0.05, idle.every)); pm = true; }
     if (!fx.frame) {
       // Without frame(), glyph() runs only when the pointer moved, and swaps are its only output.
       if (!p || !pm) return;
@@ -1281,7 +1321,7 @@ export function mount(root, options) {
       return;
     }
     pointerMoved = false;
-    if (!p && o.motion === 'always') { p = wanderAt(now); pm = true; }
+    if (!p && o.motion === 'always') { p = wanderAt(now, 0.43); pm = true; }
     setFrame(now, dt, p, pm);
     var last = fxCells;
     fxCells = fxLast;
@@ -1372,7 +1412,7 @@ export function mount(root, options) {
           var s = subs[k];
           use(s);
           // Without frame(), an effect runs in the frames where the real pointer moved, as alone.
-          s.on = s.mod.frame ? !!s.mod.frame(f) : !!(pointer && f.moved);
+          s.on = s.mod.frame ? !!s.mod.frame(f) : !!((pointer || wandering()) && f.moved);
           if (s.on) any = true;
         }
         return any;
@@ -1454,6 +1494,7 @@ export function mount(root, options) {
     paused = true;
     stepNow = 0;
     if (raf) { win.cancelAnimationFrame(raf); raf = 0; }
+    if (idleTimer) { win.clearTimeout(idleTimer); idleTimer = 0; }
   }
 
   function resume() {
@@ -1497,6 +1538,7 @@ export function mount(root, options) {
     pointer = null;
     rect = null;
     scheduleRevert();
+    if (idle) wake();
   }
   function onOut(e) { if (!e.relatedTarget) onLeave(); }
   function onScroll() { rect = null; }
@@ -1541,6 +1583,7 @@ export function mount(root, options) {
     var rebuild = linesChanged || 'wordMap' in next || 'anchor' in next;
     var refont = ('font' in next && next.font !== o.font) || 'fonts' in next;
     Object.assign(o, next);
+    useIdle();
     if ('effect' in next) useEffect();
     if ('layout' in next) useLayout();
     if ('rest' in next || !animated()) {
@@ -1570,6 +1613,7 @@ export function mount(root, options) {
     dead = true;
     cancelRevert();
     if (raf) win.cancelAnimationFrame(raf);
+    if (idleTimer) win.clearTimeout(idleTimer);
     if (io) io.disconnect();
     if (ro) ro.disconnect();
     root.removeEventListener('pointermove', onMove);
@@ -1589,6 +1633,7 @@ export function mount(root, options) {
 
   // ---- start ----
   tables();
+  useIdle();
   useEffect();
   useLayout();
   renderer = canvasRenderer();
