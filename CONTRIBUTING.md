@@ -44,7 +44,7 @@ node bench/run.mjs
 ## Budgets
 
 - **Speed.** The loop does no layout reads and no work when idle. The README "Numbers" section has the reference: about 3 ms of main-thread time per frame for the default effect, with no frame over 20 ms.
-- **Size.** There are no dependencies. Each effect or layout module is about 1 KB gzipped, and the core is about 13 KB gzipped. `npm run build` prints the sizes. If your change makes a file larger, say why in the pull request.
+- **Size.** There are no dependencies. Each effect or layout module is about 1 KB gzipped, and the core is about 14 KB gzipped. `npm run build` prints the sizes. If your change makes a file larger, say why in the pull request.
 - **Motion.** With `prefers-reduced-motion: reduce`, nothing moves.
 
 ## Code style

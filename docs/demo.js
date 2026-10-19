@@ -8,8 +8,9 @@ import { firework } from './effects/firework.js';
 import { lens } from './effects/lens.js';
 import { cascade } from './effects/cascade.js';
 import { shatter } from './effects/shatter.js';
+import { sine } from './examples/sine.js';
 
-MathGlyph.register(columns, grid, ring, ripple, firework, lens, cascade, shatter);
+MathGlyph.register(columns, grid, ring, ripple, firework, lens, cascade, shatter, sine);
 
 // Look-alike tables for scripts beyond Latin, passed as `lookalikes`.
 const TABLES = { greek, cyrillic, cjk };
@@ -105,6 +106,8 @@ const LANGUAGES = {
 
 // The gallery: a card per layout and per effect. 'lines' and 'breathe' are built in; the others are
 // the modules registered above. A card shows CARD_TEXT, or its own lines that fill its shape.
+// `custom` cards show what you can build: a layout of your own (`from`: its file), and a stack of
+// effects. They are in the gallery, not in the bar under the hero.
 // `preview` holds options for the card only, so that the shape fits the card's preview.
 // Every layout fills the same box in the hero (see #hero in demo.css) at about the same font size:
 // the text of each card is made for it.
@@ -138,6 +141,13 @@ const GALLERY = {
       options: { anchor: 'round', maxSize: 35 },
       preview: { maxSize: 14 },
     },
+    sine: {
+      module: sine,
+      custom: true,
+      from: './examples/sine.js',
+      about: 'A custom layout: a wave.',
+      lines: ['every letter', 'rides a *wave*', 'then settles'],
+    },
   },
   effect: {
     breathe: { about: 'Glyphs swap, slots widen.' },
@@ -146,6 +156,11 @@ const GALLERY = {
     lens: { module: lens, about: 'A magnifier follows the pointer.' },
     cascade: { module: cascade, about: 'Letters fall into place like rain.' },
     shatter: { module: shatter, about: 'Letters burst into dots.' },
+    'ripple + lens': {
+      custom: true,
+      stack: ['ripple', { name: 'lens', strength: 0.6 }],
+      about: 'Two effects at once: a stack.',
+    },
   },
 };
 
@@ -154,6 +169,7 @@ const SPEED = [0.25, 3, 0.05];
 const RANGES = {
   columns: { columnGap: [0, 2, 0.05] },
   ring: { gap: [0, 4, 0.1] },
+  sine: { amplitude: [0, 1, 0.05], wavelength: [2, 16, 0.5] },
   ripple: { speed: SPEED, radius: [1, 16, 0.5], gap: [0.5, 6, 0.1], pulse: [0, 1.5, 0.05] },
   firework: { speed: SPEED, radius: [0.5, 6, 0.1], power: [0, 3, 0.05], spin: [0, 3, 0.05], sparks: [0, 8, 1] },
   lens: { speed: SPEED, radius: [2, 14, 0.5], zoom: [1, 3, 0.05] },
@@ -345,11 +361,13 @@ showScripts();
 // ---- gallery: layouts and effects ----
 
 // state.layout and state.effect are a name, or { name, ...settings } with the settings that differ
-// from the module's defaults.
-const nameOf = (value) => (typeof value === 'string' ? value : value.name);
+// from the module's defaults, or for a stack of effects, its list.
+const itemName = (value) => (typeof value === 'string' ? value : value.name);
+const nameOf = (value) => (Array.isArray(value) ? value.map(itemName).join(' + ') : itemName(value));
 const defaultsOf = (kind, name) => GALLERY[kind][name].module?.defaults || {};
 
 function settingsOf(kind) {
+  if (Array.isArray(state[kind])) return {};  // a stack has no settings of its own here
   const { name, ...settings } = typeof state[kind] === 'string' ? { name: state[kind] } : state[kind];
   return { ...defaultsOf(kind, name), ...settings };
 }
@@ -361,7 +379,7 @@ function valueOf(kind, name, settings = {}) {
 }
 
 function choose(kind, name, settings = {}) {
-  set({ [kind]: valueOf(kind, name, settings) });
+  set({ [kind]: GALLERY[kind][name].stack || valueOf(kind, name, settings) });
 }
 
 // The language each layout card's picker shows. A layout card loads that text into the hero.
@@ -409,7 +427,7 @@ function showControls(code) {
   }
 }
 
-function addCard(kind, name, { about, lines = CARD_TEXT, texts, options, preview }) {
+function addCard(kind, name, { about, lines = CARD_TEXT, texts, options, preview, custom, stack }) {
   const card = document.createElement('button');
   card.type = 'button';
   card.className = 'card';
@@ -430,7 +448,7 @@ function addCard(kind, name, { about, lines = CARD_TEXT, texts, options, preview
   const mg = MathGlyph.mount(live, {
     ...shared,
     lines,
-    [kind]: name,
+    [kind]: stack || name,
     intro: false,
     maxSize: 18,
     ...options,
@@ -443,7 +461,7 @@ function addCard(kind, name, { about, lines = CARD_TEXT, texts, options, preview
   const slot = document.createElement('div');
   slot.className = 'slot';
   slot.append(card);
-  $(`${kind}s`).append(slot);
+  $(custom ? 'customs' : `${kind}s`).append(slot);
   if (!texts) return;
   const picker = document.createElement('div');
   picker.className = 'picker';
@@ -475,7 +493,7 @@ function addCard(kind, name, { about, lines = CARD_TEXT, texts, options, preview
 
 // The quick controls under the hero: a segmented control for each kind, in step with the gallery.
 function addSegments(kind) {
-  for (const name of Object.keys(GALLERY[kind])) {
+  for (const name of Object.keys(GALLERY[kind]).filter((key) => !GALLERY[kind][key].custom)) {
     const button = document.createElement('button');
     button.type = 'button';
     button.textContent = name;
@@ -635,13 +653,15 @@ function showConfig() {
   if (changed.lookalikes) changed.lookalikes = '__TABLE__';
   if (changed.fonts) changed.fonts = changed.fonts.map((f) => (f.url ? { ...f, url: new URL(f.url, location.href).href } : f));
   // The layout and effect modules the config needs: they are imported and registered.
-  const modules = ['layout', 'effect'].map((kind) => [kind, nameOf(state[kind])]).filter(([kind, name]) => GALLERY[kind][name].module);
+  const modules = ['layout', 'effect']
+    .flatMap((kind) => (Array.isArray(state[kind]) ? state[kind] : [state[kind]]).map((value) => [kind, itemName(value)]))
+    .filter(([kind, name]) => GALLERY[kind][name]?.module);
   const url = (file) => quote(new URL(file, location.href).href);
   for (const status of document.querySelectorAll('.copy-status')) status.textContent = '';
   $('sum-code').textContent = `${Object.keys(changed).length} options differ from the defaults`;
   $('config').textContent =
     `import * as MathGlyph from ${url('./mathglyph.js')};\n` +
-    modules.map(([kind, name]) => `import { ${name} } from ${url(`./${kind}s/${name}.js`)};\n`).join('') +
+    modules.map(([kind, name]) => `import { ${name} } from ${url(GALLERY[kind][name].from || `./${kind}s/${name}.js`)};\n`).join('') +
     (tableName ? `import { ${tableName} } from ${url('./languages.js')};\n` : '') + '\n' +
     (modules.length ? `MathGlyph.register(${modules.map(([, name]) => name).join(', ')});\n` : '') +
     "const el = document.getElementById('hero');\n" +
@@ -692,6 +712,7 @@ function showSummaries() {
     state.fit ? `fit, max ${state.maxSize}px` : 'no fit',
   ].join(' · ');
   $('sum-modules').textContent = ['layout', 'effect'].map((kind) => {
+    if (Array.isArray(state[kind])) return nameOf(state[kind]);
     const { name, ...changed } = typeof state[kind] === 'string' ? { name: state[kind] } : state[kind];
     return [name, ...Object.entries(changed).map(([key, value]) => `${key} ${typeof value === 'number' ? fixed(value) : value}`)].join(' ');
   }).join(' · ');

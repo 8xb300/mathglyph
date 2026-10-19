@@ -1,4 +1,4 @@
-/*! mathglyph v0.5.1 | MIT | github.com/8xb300/mathglyph */
+/*! mathglyph v0.6.0 | MIT | github.com/8xb300/mathglyph */
 
 // src/mathglyph.js
 var BASE = { bold: 119808, italic: 119860, script: 119964, fraktur: 120068, double: 120120 };
@@ -376,6 +376,7 @@ var PEAK_MS = 350;
 var FADE_MS = 80;
 var REVERT_WAVE_MS = 700;
 var RELEASE_MS = 200;
+var BURST_MS = 400;
 var segmenter = typeof Intl !== "undefined" && Intl.Segmenter ? new Intl.Segmenter(void 0, { granularity: "grapheme" }) : null;
 function graphemes(s) {
   return segmenter ? Array.from(segmenter.segment(s), function(x) {
@@ -529,6 +530,8 @@ function mount(root, options) {
   var reverting = [], revertStart = 0, revertTimer = 0;
   var raf = 0, dead = false, onScreen = true, needMeasure = false, needLayout = false;
   var pointer = null, pointerMoved = false, rect = null;
+  var burstAt = null, burstBack = null, burstEnd = 0, paused = false, stepNow = 0, running = false;
+  var listeners = {};
   var mq = win.matchMedia ? win.matchMedia("(prefers-reduced-motion: reduce)") : null;
   var reduce = !!(mq && mq.matches);
   var renderer, io = null, ro = null;
@@ -824,8 +827,8 @@ function mount(root, options) {
     var sp = Math.max(o.speed, 0.25);
     cells.forEach(function(c) {
       if (!c.woke || c.reverting || c.word && c !== c.word.cells[0]) return;
-      var off = (maxLen - c.len) / 2 + c.col;
-      c.settle = (off / maxLen * REVERT_WAVE_MS + Math.random() * 40) / sp;
+      var off2 = (maxLen - c.len) / 2 + c.col;
+      c.settle = (off2 / maxLen * REVERT_WAVE_MS + Math.random() * 40) / sp;
       (c.word ? c.word.cells : [c]).forEach(function(x) {
         x.reverting = true;
       });
@@ -877,7 +880,7 @@ function mount(root, options) {
     moving = [];
     dirty = M.dirty = [];
     M.anchor = null;
-    F.state = {};
+    useEffect();
     cancelRevert();
     src.forEach(function(text, li) {
       var parsed = parseLine(String(text));
@@ -1047,7 +1050,7 @@ function mount(root, options) {
     M.speed = Math.max(o.speed, 0.25);
     M.lineEm = LINE_H;
     M.fs = o.fit ? 0 : parseFloat(win.getComputedStyle(root).fontSize) || 16;
-    var s = lay.size(M);
+    var s = (lay.size || LINES.size)(M);
     fs = M.fs = s.fs;
     H = M.height = s.height;
     pad = s.pad || 0;
@@ -1311,10 +1314,10 @@ function mount(root, options) {
     return !reduce && o.motion !== "still";
   }
   function active() {
-    return !dead && onScreen && !document.hidden;
+    return !dead && !paused && onScreen && !document.hidden;
   }
   function busy() {
-    return moving.length || hot.length || decoding || reverting.length || fxOn || fxCells.length || layBusy || o.motion === "always" && animated();
+    return moving.length || hot.length || decoding || reverting.length || fxOn || fxCells.length || layBusy || burstAt || burstEnd || o.motion === "always" && animated();
   }
   function wake() {
     if (!raf && active()) raf = win.requestAnimationFrame(frame);
@@ -1322,10 +1325,18 @@ function mount(root, options) {
   function frame(now) {
     raf = 0;
     if (!active()) return;
+    run(now, lastFrame ? Math.min(now - lastFrame, 100) : 1e3 / 60);
+    if (lastFrame) raf = win.requestAnimationFrame(frame);
+  }
+  function run(now, dt) {
     if (needMeasure) measure();
     if (needLayout) layout();
-    var dt = lastFrame ? Math.min(now - lastFrame, 100) : 1e3 / 60;
     if (animated()) runEffect(now, dt);
+    if (burstAt) endBurst(now);
+    if (burstEnd && now >= burstEnd) {
+      burstEnd = 0;
+      if (!pointer) scheduleRevert();
+    }
     if (animated() && (hot.length || decoding || reverting.length || o.motion === "always")) {
       if (!lastTick || now - lastTick > 4 * TICK) lastTick = now - TICK;
       while (now - lastTick >= TICK) {
@@ -1341,7 +1352,13 @@ function mount(root, options) {
     flush();
     M.dt = 0;
     lastFrame = busy() ? now : 0;
-    if (lastFrame) raf = win.requestAnimationFrame(frame);
+    if (lastFrame && !running) {
+      running = true;
+      emit("wake");
+    } else if (!lastFrame && running) {
+      running = false;
+      emit("settle");
+    }
   }
   function stepWidths(dt) {
     var still = [];
@@ -1442,7 +1459,7 @@ function mount(root, options) {
     if (OUT.swap) swap(c, F.now);
   }
   function swap(c, now) {
-    if (!pointer && o.rest === "plain") return;
+    if (!pointer && !burstEnd && o.rest === "plain") return;
     wakeCell(c);
     c.hot = now + 260 / Math.max(o.speed, 0.25);
     if (!c.inHot) {
@@ -1528,14 +1545,83 @@ function mount(root, options) {
     releaseStart = 0;
   }
   function useEffect() {
-    var r = resolve(EFFECTS, o.effect, "breathe");
+    var e = o.effect, list = Array.isArray(e) ? e : e && e.strength != null ? [e] : null, r;
     clearFx();
-    fx = r.mod;
-    F.settings = r.settings;
+    if (list) fx = stackOf(list);
+    else {
+      r = resolve(EFFECTS, e, "breathe");
+      fx = r.mod;
+      F.settings = r.settings;
+    }
     F.state = {};
     cells.forEach(function(c) {
-      c.fx = void 0;
+      c.fx = c.fxs = void 0;
     });
+  }
+  function stackOf(list) {
+    var subs = list.map(function(v) {
+      var r = resolve(EFFECTS, v, "breathe"), w = v && v.strength;
+      delete r.settings.strength;
+      return { mod: r.mod, settings: r.settings, state: {}, w: w == null ? 1 : Math.max(0, Math.min(1, +w || 0)), on: false };
+    });
+    var T2 = {}, reach = 0;
+    subs.forEach(function(s) {
+      reach = Math.max(reach, s.mod.reach >= 0 ? s.mod.reach : 1);
+    });
+    function use(s, g, k) {
+      F.settings = s.settings;
+      F.state = s.state;
+      if (g) g.fx = g.fxs[k];
+    }
+    return {
+      name: subs.map(function(s) {
+        return s.mod.name;
+      }).join("+"),
+      reach,
+      frame: function(f) {
+        var any = false;
+        for (var k = 0; k < subs.length; k++) {
+          var s = subs[k];
+          use(s);
+          s.on = s.mod.frame ? !!s.mod.frame(f) : !!(pointer && f.moved);
+          if (s.on) any = true;
+        }
+        return any;
+      },
+      glyph: function(g, out, f) {
+        var mask = 0;
+        if (!g.fxs) g.fxs = [];
+        for (var k = 0; k < subs.length; k++) {
+          var s = subs[k], w = s.w;
+          if (!s.on || !w) continue;
+          T2.x = T2.y = T2.rotate = 0;
+          T2.scale = T2.alpha = 1;
+          T2.swap = T2.paint = false;
+          use(s, g, k);
+          s.mod.glyph(g, T2, f);
+          g.fxs[k] = g.fx;
+          if (T2.swap && (w >= 1 || g.seed < w)) out.swap = true;
+          if (!s.mod.frame) continue;
+          out.x += T2.x * w;
+          out.y += T2.y * w;
+          out.rotate += T2.rotate * w;
+          out.scale *= 1 + (T2.scale - 1) * w;
+          out.alpha *= 1 + (T2.alpha - 1) * w;
+          if (T2.paint && s.mod.paint) mask |= 1 << k;
+        }
+        g.fxm = mask;
+        out.paint = mask > 0;
+      },
+      paint: function(ctx, g, out, f) {
+        for (var k = 0; k < subs.length; k++) {
+          if (!(g.fxm & 1 << k)) continue;
+          use(subs[k], g, k);
+          ctx.save();
+          subs[k].mod.paint(ctx, g, out, f);
+          ctx.restore();
+        }
+      }
+    };
   }
   function useLayout() {
     var r = resolve(LAYOUTS, o.layout, "lines");
@@ -1545,10 +1631,64 @@ function mount(root, options) {
   function onMove(e) {
     if (!animated()) return;
     if (!rect) rect = renderer.el.getBoundingClientRect();
-    pointer = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    setPointer(e.clientX - rect.left, e.clientY - rect.top);
+  }
+  function setPointer(x, y) {
+    if (!animated()) return;
+    pointer = { x, y };
     pointerMoved = true;
     cancelRevert();
     wake();
+  }
+  function burst(x, y) {
+    if (!animated()) return;
+    if (!burstAt) burstBack = pointer;
+    setPointer(x, y);
+    burstAt = pointer;
+  }
+  function endBurst(now) {
+    if (pointer === burstAt) pointer = burstBack;
+    burstAt = burstBack = null;
+    burstEnd = now + BURST_MS / Math.max(o.speed, 0.25);
+  }
+  function pause() {
+    paused = true;
+    stepNow = 0;
+    if (raf) {
+      win.cancelAnimationFrame(raf);
+      raf = 0;
+    }
+  }
+  function resume() {
+    if (!paused) return;
+    paused = false;
+    lastFrame = 0;
+    wake();
+  }
+  function step(ms) {
+    if (!paused || dead || !(ms > 0)) return;
+    var n = Math.ceil(ms * 0.06 - 1e-6), dt = ms / n;
+    if (!stepNow) stepNow = lastFrame || win.performance.now();
+    for (var k = 0; k < n; k++) {
+      stepNow += dt;
+      run(stepNow, dt);
+    }
+  }
+  function on(name, fn) {
+    (listeners[name] = listeners[name] || []).push(fn);
+    return function() {
+      off(name, fn);
+    };
+  }
+  function off(name, fn) {
+    var a = listeners[name], i = a ? a.indexOf(fn) : -1;
+    if (i >= 0) a.splice(i, 1);
+  }
+  function emit(name) {
+    var a = listeners[name];
+    if (a && a.length) a.slice().forEach(function(fn) {
+      fn();
+    });
   }
   function onLeave() {
     if (!pointer && (revertTimer || reverting.length)) return;
@@ -1604,9 +1744,9 @@ function mount(root, options) {
     }
     var sp = Math.max(o.speed, 0.25);
     cells.forEach(function(c) {
-      var off = (maxLen - c.len) / 2 + c.col;
+      var off2 = (maxLen - c.len) / 2 + c.col;
       c.settled = false;
-      c.settle = (250 + off / maxLen * 800 + Math.random() * 500) / sp;
+      c.settle = (250 + off2 / maxLen * 800 + Math.random() * 500) / sp;
     });
     decoding = true;
     decodeStart = 0;
@@ -1726,11 +1866,24 @@ function mount(root, options) {
     if (document.fonts.ready) document.fonts.ready.then(onFonts);
     if (document.fonts.addEventListener) document.fonts.addEventListener("loadingdone", onFonts);
   }
-  return { update, replay, reroll: function() {
-    settleAll();
-    revertIfGone();
-    wake();
-  }, destroy };
+  return {
+    update,
+    replay,
+    reroll: function() {
+      settleAll();
+      revertIfGone();
+      wake();
+    },
+    destroy,
+    burst,
+    setPointer,
+    clearPointer: onLeave,
+    pause,
+    resume,
+    step,
+    on,
+    off
+  };
 }
 export {
   DEFAULTS as defaults,

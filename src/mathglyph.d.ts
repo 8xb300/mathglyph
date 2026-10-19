@@ -59,7 +59,7 @@ export interface Glyph {
   cy: number;
   /** Size of the slot along the text, CSS px. It moves on a spring as glyphs swap. */
   w: number;
-  /** Angle of the slot, radians. 0, except in the ring layout. */
+  /** Angle of the slot, radians. The layout sets it: 0 in 'lines', 'columns' and 'grid'. */
   r: number;
   /** The source character, and the glyph shown now. */
   ch: string;
@@ -150,7 +150,11 @@ export interface Effect {
   reach?: number;
 }
 
-/** A layout places the slots. Each is its own module, as the effects are. */
+/**
+ * A layout places the slots: from each glyph's slot size `w` and the element's size, it sets each
+ * glyph's centre `cx`, `cy` and angle `r`. Every built-in layout is one of these, 'lines' too, and
+ * you can write your own. Add it with `register`, as an effect.
+ */
 export interface Layout {
   name: string;
   defaults?: Record<string, any>;
@@ -162,14 +166,17 @@ export interface Layout {
   /** true: slots stack down the canvas, and labels read down beside their box instead of under it. */
   vertical?: boolean;
   /**
-   * Sets the font size and the canvas height, and `pad`: em that every slot gets along the text
+   * Gives the font size and the canvas height, and `pad`: em that every slot gets along the text
    * on top of its glyph's width. Called on start, resize, font load and update, never in the
-   * frame loop, so it can read `viewH`.
+   * frame loop, so it can read `viewH`. Optional: without it, the size of 'lines' (the widest line
+   * fits the width, with `fit`; a line height per line).
    */
-  size(m: LayoutMetrics): { fs: number; height: number; pad?: number };
+  size?(m: LayoutMetrics): { fs: number; height: number; pad?: number };
   /**
-   * Sets `cx`, `cy` and `r` of every glyph from the slot sizes `w`. Called in frames where a slot
-   * changed, and once more in every frame while it returns true (for springs of its own).
+   * Sets `cx`, `cy` and `r` of every glyph from the slot sizes `w`. Called once after `size()`, in
+   * frames where something changed (`m.dirty[i]` is true for each line whose slots changed), and
+   * once more in every frame while it returns true (for springs of its own). It must not read the
+   * page: use only what `m` holds.
    */
   place(m: LayoutMetrics): boolean | void;
 }
@@ -202,13 +209,18 @@ export interface LayoutMetrics {
   lineEm: number;
   lineH: number;
   boxH: number;
-  /** Each line: its glyphs, and where its anchor word is ([a0, a1), a1 is 0 without one). */
-  lines: Array<{ cells: LayoutGlyph[]; a0: number; a1: number }>;
+  /**
+   * Each line: its glyphs, where its anchor word is ([a0, a1), a1 is 0 without one), its plain
+   * size along the text in em (`natural`), and the middle of its anchor word in em from the line's
+   * start (`mid`). A layout can keep its own data for a line on these objects, as 'lines' keeps
+   * `top` and `left`.
+   */
+  lines: Array<{ cells: LayoutGlyph[]; a0: number; a1: number; natural: number; mid: number; [key: string]: any }>;
   /** The anchor word: its line and its glyphs [from, to), or null. */
   anchor: { line: number; from: number; to: number } | null;
   /** The layout's `defaults` with the user's settings over them. */
   settings: Record<string, any>;
-  /** Free for the layout: state for this mount. Cleared before every `size()`. */
+  /** Free for the layout: state for this mount. Cleared after every `size()`, before `place()`. */
   state: Record<string, any>;
   /** In `place()`: true for each line whose slots changed since the last call. */
   dirty: boolean[];
@@ -233,9 +245,12 @@ export interface Options {
    * What the pointer does. 'breathe' (default): glyphs near the pointer scramble and their slots
    * widen. 'wave' was removed in v0.5.0: it gives 'breathe' and a console warning. A name needs
    * its module registered (see `register`), except 'breathe'.
-   * `{ name, ...settings }` sets the effect's settings.
+   * `{ name, ...settings }` sets the effect's settings. A list runs several at once, in order:
+   * `['ripple', { name: 'lens', strength: 0.5 }]`. Their offsets and rotations add, their scales
+   * and opacities multiply, and any of them can swap a glyph. `strength` (0 to 1, default 1)
+   * scales what one effect does; its swaps count for that share of the glyphs.
    */
-  effect?: EffectName | Effect | ({ name: EffectName | string } & Record<string, unknown>);
+  effect?: EffectValue | EffectValue[];
   /**
    * Scripts that swaps take look-alike letters from: an array of names, or names with weights.
    * 'latin' is the math alphabets and symbols (the default behaviour), 'greek' Greek letters that
@@ -290,11 +305,42 @@ export interface Options {
   maxSize?: number;
 }
 
+/** One effect: a name, a module, or a name or module with settings and a `strength`. */
+export type EffectValue =
+  | EffectName
+  | Effect
+  | ({ name: EffectName | string; strength?: number } & Record<string, unknown>);
+
 export interface MathGlyph {
   update(options: Options): void;
   replay(): void;
   reroll(): void;
   destroy(): void;
+  /**
+   * Wakes the glyphs at a point, as a pointer that touches the text there and leaves: the effect
+   * reacts, and with rest: 'plain' the text settles back. x and y: CSS px from the top left of the
+   * canvas that mathglyph draws in (the first child of the element). Does nothing with reduced
+   * motion or motion: 'still'.
+   */
+  burst(x: number, y: number): void;
+  /**
+   * Moves the pointer to a point, as a real pointer would. Real pointer events still apply. Does
+   * nothing with reduced motion or motion: 'still'.
+   */
+  setPointer(x: number, y: number): void;
+  /** The pointer leaves the text. */
+  clearPointer(): void;
+  /** Stops the frame loop until `resume()`. Nothing moves while paused, except by `step()`. */
+  pause(): void;
+  resume(): void;
+  /** While paused: moves time on by `ms`, in frames of at most 1/60 s. For frame-by-frame recording. */
+  step(ms: number): void;
+  /**
+   * 'wake': the frame loop starts. 'settle': it stops, because nothing moves. Gives a function
+   * that removes the listener.
+   */
+  on(event: 'wake' | 'settle', listener: () => void): () => void;
+  off(event: 'wake' | 'settle', listener: () => void): void;
 }
 
 export function mount(element: HTMLElement, options?: Options): MathGlyph;

@@ -11,7 +11,11 @@
     intro   0: no intro.
     options JSON of more options, for example {"boxJitter":1,"boxSpan":4}.
     layout  a layout name; its module loads and is registered (default lines, built in).
+            sine is the custom layout in docs/examples/sine.js (it is not in dist/).
     effect  an effect name; its module loads and is registered (default breathe, built in).
+    effects a stack of effects, names separated by commas; each module loads and is registered.
+            name:strength gives one a strength from 0 to 1. effects=ripple,lens:0.5 gives
+            effect: ['ripple', { name: 'lens', strength: 0.5 }]. Wins over effect.
     src     1: load the engine and modules from src/ instead of dist/.
 -->
 <html lang="en">
@@ -127,9 +131,12 @@
   Object.assign(options, JSON.parse(params.get('options') || '{}'));
   document.body.classList.toggle('preview', mode === 'preview');
 
-  // A module of the engine: src/<kind>/<name>.js, or its build in dist/.
+  // A module of the engine: src/<kind>/<name>.js, or its build in dist/. An example (a custom
+  // module written with the public interface) is only in docs/examples/.
   const fromSrc = params.get('src') === '1';
-  const load = (kind, name) => import(fromSrc ? `../src/${kind}/${name}.js` : `../dist/${kind}/${name}.min.js`);
+  const EXAMPLES = ['sine'];
+  const load = (kind, name) => import(EXAMPLES.includes(name) ? `../docs/examples/${name}.js`
+    : fromSrc ? `../src/${kind}/${name}.js` : `../dist/${kind}/${name}.min.js`);
 
   window.__ready = (async () => {
     const lib = impl === 'original' ? await loadOriginal()
@@ -139,6 +146,14 @@
       if (!name) continue;
       if (name !== builtIn) lib.register((await load(`${kind}s`, name))[name]);
       options[kind] = name;
+    }
+    if (params.get('effects')) {
+      options.effect = [];
+      for (const item of params.get('effects').split(',')) {
+        const [name, strength] = item.split(':');
+        if (name !== 'breathe') lib.register((await load('effects', name))[name]);
+        options.effect.push(strength ? { name, strength: Number(strength) } : name);
+      }
     }
     window.__fx = lib.mount(document.getElementById('fx'), options);
     await document.fonts.ready;

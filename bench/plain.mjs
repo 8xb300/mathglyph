@@ -6,8 +6,16 @@
 // hero keeps one height when the layout or the language changes.
 // Every layout with every effect, on the bench page: the pointer crosses the text and leaves, the
 // text is plain again, and then no frames run. With reduced motion the pointer changes nothing.
+// The layouts include 'sine', the custom layout in docs/examples/.
+// Stacks of effects, each on 'lines' and on one other layout, in the same way, and one with reduced
+// motion.
+// The hooks of mount() on the bench page: burst(), setPointer(), clearPointer(), pause(), step(),
+// resume(), on() and off().
 //
-//   node bench/plain.mjs [demo | matrix [layout]]
+//   node bench/plain.mjs [demo] [matrix [layout]] [stacks] [hooks]
+//
+// With no part named, all of them run. A layout name runs the matrix for that layout only, so
+// node bench/plain.mjs matrix sine stacks hooks runs the custom layout, the stacks and the hooks.
 //
 // Needs playwright (with its Chromium) where require() finds it: a node_modules folder or NODE_PATH.
 // Run npm run build first: the pages load docs/ and dist/. Exits 1 if a check fails.
@@ -34,10 +42,17 @@ function modules(kind, builtIn) {
   const built = fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => f.endsWith('.min.js')) : [];
   return [builtIn, ...built.map((f) => f.slice(0, -'.min.js'.length)).sort()];
 }
-const LAYOUTS = modules('layouts', 'lines').filter((name) => !process.argv[3] || name === process.argv[3]);
+const PARTS = ['demo', 'matrix', 'stacks', 'hooks'];
+const args = process.argv.slice(2);
+const wanted = (part) => !args.some((arg) => PARTS.includes(arg)) || args.includes(part);
+const oneLayout = args.find((arg) => !PARTS.includes(arg));
+// 'sine' is not in dist/: the page loads it from docs/examples/.
+const LAYOUTS = [...modules('layouts', 'lines'), 'sine'].filter((name) => !oneLayout || name === oneLayout);
 const EFFECTS = modules('effects', 'breathe');
+// Stacks in the page's effects syntax (name:strength), each with the layout it runs on besides
+// 'lines': a strength below 1, two effects with paint(), and an effect without frame().
+const STACKS = [['ripple,lens:0.5', 'grid'], ['firework,shatter', 'ring'], ['breathe,cascade', 'columns']];
 
-const only = process.argv[2];
 const server = await serveRepo();
 const base = `http://127.0.0.1:${server.address().port}`;
 const browser = await chromium.launch();
@@ -200,13 +215,14 @@ async function heroChecks() {
   }
 }
 
-// One layout with one effect on the bench page, with the README text and its anchor: the real mouse
-// crosses every line and leaves, then the text must be plain again and no timer or frame may run.
-// With reduced motion the pointer must change nothing at all.
+// One layout with one effect or a stack on the bench page, with the README text and its anchor: the
+// real mouse crosses every line and leaves, then the text must be plain again and no timer or frame
+// may run. With reduced motion the pointer must change nothing at all.
 async function combo(context, layout, effect, reduced, options = '', label = options) {
   const page = await context.newPage();
   if (reduced) await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto(`${base}/bench/page.html?impl=canvas&mode=preview&rest=plain&intro=0&layout=${layout}&effect=${effect}` +
+  const param = /[,:]/.test(effect) ? 'effects' : 'effect';
+  await page.goto(`${base}/bench/page.html?impl=canvas&mode=preview&rest=plain&intro=0&layout=${layout}&${param}=${effect}` +
     (options && `&options=${encodeURIComponent(options)}`));
   await page.evaluate(() => window.__ready);
   await sleep(600);
@@ -237,7 +253,8 @@ async function combo(context, layout, effect, reduced, options = '', label = opt
   await sleep(IDLE_MS);
   const wakeups = (await page.evaluate(() => window.__wakeups)) - before;
   await page.close();
-  const name = `${layout} × ${effect}${reduced ? ', reduced motion' : ''}${label && `, ${label}`}`;
+  const shown = effect.replaceAll(',', ' + ').replaceAll(':', ' at ');
+  const name = `${layout} × ${shown}${reduced ? ', reduced motion' : ''}${label && `, ${label}`}`;
   if (reduced) report(`${name}: the pointer changes nothing, then idle`, !moved && back && !wakeups, `: ${wakeups} wakeups`);
   else report(`${name}: hover, leave, plain again, then idle`, moved && back && !wakeups,
     `: ${moved ? '' : 'nothing moved, '}${back ? '' : 'not plain, '}${wakeups} wakeups`);
@@ -248,7 +265,9 @@ async function matrix() {
   for (const layout of LAYOUTS) {
     for (const effect of EFFECTS) await combo(context, layout, effect, false);
   }
-  for (const effect of EFFECTS) await combo(context, 'lines', effect, true);
+  if (LAYOUTS.includes('lines')) {
+    for (const effect of EFFECTS) await combo(context, 'lines', effect, true);
+  }
   // The most varied boxes: big jitter, wide spans, a box on most woken glyphs.
   for (const layout of LAYOUTS) await combo(context, layout, 'breathe', false, '{"boxJitter":1,"boxSpan":4,"box":1}');
   // The gallery's cards: short Chinese columns with the CJK table, and a short ring, both anchored.
@@ -265,12 +284,97 @@ async function matrix() {
   await context.close();
 }
 
+async function stacks() {
+  const context = await browser.newContext({ viewport: { width: 1000, height: 1000 } });
+  for (const [stack, other] of STACKS) {
+    for (const layout of ['lines', other]) await combo(context, layout, stack, false);
+  }
+  await combo(context, 'lines', STACKS[0][0], true);
+  await context.close();
+}
+
+// The hooks of mount(), with rest: 'plain' and the ripple effect, so that step() drives an effect's
+// frame() too. A burst at the middle of the text changes it, then the text is plain again and no
+// timer or frame runs; 'wake' and 'settle' fire once for that burst, and not after off(). While
+// paused, setPointer() draws nothing, step() moves the text, and clearPointer() with enough steps
+// leaves it plain. After resume() no timer or frame runs.
+async function hooks() {
+  const page = await browser.newPage({ viewport: { width: 1000, height: 1000 } });
+  await page.goto(`${base}/bench/page.html?impl=canvas&mode=preview&rest=plain&intro=0&effect=ripple`);
+  await page.evaluate(() => window.__ready);
+  await sleep(600);
+  const canvas = page.locator('#fx canvas');
+  const pixels = () => canvas.evaluate((c) => c.toDataURL());
+  const wakeups = () => page.evaluate(() => window.__wakeups);
+  const box = await canvas.boundingBox();
+  const middle = [box.width / 2, box.height / 2];
+  const step = (frames) => page.evaluate((n) => {
+    for (let k = 0; k < n; k++) window.__fx.step(1000 / 60);
+  }, frames);
+  const plain = await pixels();
+
+  await page.evaluate(() => {
+    window.__events = { wake: 0, settle: 0 };
+    window.__onWake = () => window.__events.wake++;
+    window.__fx.on('wake', window.__onWake);
+    window.__offSettle = window.__fx.on('settle', () => window.__events.settle++);
+  });
+  await page.evaluate(([x, y]) => window.__fx.burst(x, y), middle);
+  await sleep(300);
+  const changed = (await pixels()) !== plain;
+  await sleep(EFFECT_SETTLE_MS);
+  const back = (await pixels()) === plain;
+  let before = await wakeups();
+  await sleep(IDLE_MS);
+  let idle = (await wakeups()) - before;
+  report('hooks: burst() at the middle, plain again, then idle', changed && back && !idle,
+    `: ${changed ? '' : 'nothing changed, '}${back ? '' : 'not plain, '}${idle} wakeups`);
+  const events = await page.evaluate(() => {
+    const counted = { ...window.__events };
+    window.__fx.off('wake', window.__onWake);
+    window.__offSettle();
+    return counted;
+  });
+
+  await page.evaluate(() => window.__fx.pause());
+  before = await wakeups();
+  await page.evaluate(([x, y]) => window.__fx.setPointer(x, y), middle);
+  await sleep(300);
+  const drawn = (await pixels()) !== plain;
+  const pointed = (await wakeups()) - before;
+  report('hooks: paused, setPointer() draws no frame', !drawn && !pointed, `: ${drawn ? 'drawn, ' : ''}${pointed} wakeups`);
+  await step(10);
+  const moved = (await pixels()) !== plain;
+  await page.evaluate(() => window.__fx.clearPointer());
+  await step(180);
+  const stepped = (await pixels()) === plain;
+  const pausedWakeups = (await wakeups()) - before;
+  report('hooks: paused, step() moves the text, then clearPointer() and steps leave it plain', moved && stepped && !pausedWakeups,
+    `: ${moved ? '' : 'nothing moved, '}${stepped ? '' : 'not plain, '}${pausedWakeups} wakeups`);
+
+  await page.evaluate(() => window.__fx.resume());
+  await sleep(500);
+  const resumed = (await pixels()) === plain;
+  before = await wakeups();
+  await sleep(IDLE_MS);
+  idle = (await wakeups()) - before;
+  report('hooks: after resume(), plain, then idle', resumed && !idle, `: ${resumed ? '' : 'not plain, '}${idle} wakeups`);
+
+  const after = await page.evaluate(() => window.__events);
+  report(`hooks: 'wake' and 'settle' fire once for one burst, and not after off()`,
+    events.wake === 1 && events.settle === 1 && after.wake === 1 && after.settle === 1,
+    `: wake ${events.wake}, settle ${events.settle}; after off(): wake ${after.wake}, settle ${after.settle}`);
+  await page.close();
+}
+
 try {
-  if (only !== 'matrix') {
+  if (wanted('demo')) {
     await demoChecks();
     await heroChecks();
   }
-  if (only !== 'demo') await matrix();
+  if (wanted('matrix')) await matrix();
+  if (wanted('stacks')) await stacks();
+  if (wanted('hooks')) await hooks();
 } finally {
   await browser.close();
   server.close();

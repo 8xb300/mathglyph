@@ -12,7 +12,7 @@ Give it a few lines of text. It shows them in monospace, with a math accent:
 - The pointer scrambles the characters near it, then they settle. There is also a left-to-right decode intro (on by default) and a slow idle reshuffle (off by default).
 - Words in `*stars*` are highlighted: white, and readable at rest.
 - With `rest: 'plain'`, the text is plain at rest. The pointer wakes glyphs near it, and the slots widen. A few seconds after the pointer leaves, the text goes back to plain and the slots narrow. The preview above uses this mode.
-- A [layout](#layouts) places the text: centred lines, columns, a grid or a ring. An [effect](#effects) sets what the pointer does: the glyphs breathe, ripple, burst into sparks, grow under a lens, fall like rain or break into dots. You can [write your own effect](#custom-effects).
+- A [layout](#layouts) places the text: centred lines, columns, a grid or a ring. An [effect](#effects) sets what the pointer does: the glyphs breathe, ripple, burst into sparks, grow under a lens, fall like rain or break into dots. You can [stack effects](#stack-effects), and [write your own effect](#custom-effects) or [layout](#custom-layouts).
 
 ## How it's different
 
@@ -22,7 +22,10 @@ A typical text-scramble effect cycles random characters in a fixed grid. mathgly
 - **Slots that fit the glyph.** Each slot widens to fit the glyph it shows, so wide symbols and short tokens (∫₀, ℏω, ⊗², &&) fit and the lines breathe. `expand: false` keeps a strict grid.
 - **Smooth breathing.** Slot widths move on critically damped springs that run on the real frame time, and lines stay centred on them, so the motion never jumps or turns back when a glyph changes mid-motion, at 60, 120 or 144 Hz. A scrambling slot keeps its widest recent width for a moment instead of twitching with each glyph, glyphs crossfade, and boxes and labels move with their slots to the subpixel.
 - **An anchor word.** `anchor` pins one word: it never changes, it stays at the middle of the element, and its line grows outward from it, so only the letters beyond a widening slot move.
-- **Layouts and effects as modules.** Four layouts and seven hover effects. Each one except the defaults is a small module, so a page loads only the ones it uses. An effect is a plain object with a few functions, so you can write your own.
+- **Layouts and effects as modules.** Four layouts and six hover effects. Each one except the defaults is a small module, so a page loads only the ones it uses. An effect is a plain object with a few functions, so you can write your own.
+- **Layouts of your own.** The four built-in layouts use a public interface: a `place()` function that sets where each glyph goes. Your own layout uses the same one, for example to set the lines on a sine wave.
+- **Stacked effects.** `effect` takes a list, so a ripple and a lens can run together. Each effect has its own settings and a `strength`.
+- **Hooks for your code.** `burst()`, `setPointer()`, `pause()` and `step()` let a script move the pointer and the clock, for example to record the effect frame by frame. The `'wake'` and `'settle'` events tell you when the frame loop starts and stops.
 - **Readable at rest.** Look-alike swaps (∃ for E, ∪ for U, ∅ for O) and math versions of the same letter keep words legible.
 - **Whole-word swaps.** Words with a symbol meaning turn into it: and → ∧, therefore → ∴, every → ∀. You can add your own words, in any language.
 - **Bounding-box labels.** Boxes look like vision-model detections: a thin 1px rectangle with a tiny label that shows the slot's real width change, such as `Δx=30px`. Each box gets its own padding and a small offset, and one box can cover a few neighbouring glyphs of a word, so boxes vary in size and may overlap. `boxJitter: 0, boxSpan: 1` gives the v0.3.1 look: uniform boxes, one glyph each. `boxStyle: 'soft'` draws a rounded box instead.
@@ -46,7 +49,7 @@ mathglyph is not on npm yet. Load it from jsDelivr, or copy `dist/` into your pr
 ```html
 <h1 id="hero">Every proof starts with a good guess</h1>
 <script type="module">
-  import { mount } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.1/dist/mathglyph.min.js';
+  import { mount } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/mathglyph.min.js';
   const lines = ['Every proof starts', 'with a *good* guess'];  // *stars* highlight a word
   mount(document.getElementById('hero'), { lines, palette: 'ice' });
 </script>
@@ -55,7 +58,7 @@ mathglyph is not on npm yet. Load it from jsDelivr, or copy `dist/` into your pr
 With a plain script tag, the same exports are on the global `MathGlyph`:
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.1/dist/mathglyph.iife.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/mathglyph.iife.min.js"></script>
 <script>
   MathGlyph.mount(document.getElementById('hero'), { lines: ['Every proof starts', 'with a *good* guess'] });
 </script>
@@ -114,7 +117,7 @@ Put the plain text in the element, as in the first Quick start example. `mount` 
 
 ## Layouts
 
-`layout` places the slots. `'lines'` is built in. The others are [modules](#modules): import them and pass them to `register` first. Give settings with the name, as in `layout: { name: 'ring', gap: 2 }`. The anchor word works in every layout: it stays still, and the text moves around it.
+`layout` places the slots. `'lines'` is built in. The others are [modules](#modules): import them and pass them to `register` first. Give settings with the name, as in `layout: { name: 'ring', gap: 2 }`. The anchor word works in every layout: it stays still, and the text moves around it. To write your own layout, see [Custom layouts](#custom-layouts).
 
 | | Layout | Settings, with defaults |
 |---|---|---|
@@ -130,8 +133,8 @@ Put the plain text in the element, as in the first Quick start example. `mount` 
 `'breathe'` is built in. The others are [modules](#modules): import them and pass them to `register` first. v0.5.0 removed `'wave'`: a page that still asks for it gets `'breathe'` and one console warning. Give settings with the name:
 
 ```js
-import { mount, register } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.1/dist/mathglyph.min.js';
-import { ripple } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.1/dist/effects/ripple.min.js';
+import { mount, register } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/mathglyph.min.js';
+import { ripple } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/effects/ripple.min.js';
 
 register(ripple);
 const fx = mount(element, { effect: 'ripple' });               // the default settings
@@ -148,6 +151,25 @@ Distances are in em: 1 em is the font size. Each effect's `speed` is multiplied 
 | <img src="docs/previews/lens.webp" width="300" alt="The lens effect"> | `'lens'`: a magnifier follows the pointer. Letters under it grow, the most at its centre, and the letters around them move aside. | `speed: 1`: how fast the lens follows the pointer, grows and shrinks.<br>`radius: 6`: how far the lens reaches, in em. Letters in its inner third grow; the rest only move aside.<br>`zoom: 1.8`: how large the letter at the centre grows, as a scale (1 is its normal size).<br>`swap: true`: the letters near the centre swap to math glyphs as the lens passes over them. |
 | <img src="docs/previews/cascade.webp" width="300" alt="The cascade effect"> | `'cascade'`: letters near the pointer drop from above into their slots, like rain. The columns start one after another, the nearest to the pointer first. The letters of a column fall together, scramble and fade in, then lock in place with a small bounce. | `speed: 1`: how fast the letters fall and lock in, and how often a column starts.<br>`radius: 3`: how near the pointer a letter must be to fall, in em.<br>`fall: 2.5`: how far above its slot a letter starts to fall, in em, at most 3. |
 | <img src="docs/previews/shatter.webp" width="300" alt="The shatter effect"> | `'shatter'`: letters near the pointer break into round dots that scatter a little, then fly back and come together again, often as a new glyph. | `speed: 1`: how fast the dots fly out and back.<br>`radius: 1.8`: how near the pointer a letter must be to break, in em.<br>`scatter: 0.5`: how far the dots fly out, in em, at most 0.6.<br>`dots: 12`: the most dots a letter breaks into. |
+
+### Stack effects
+
+Give `effect` a list, and the effects run together, in the order of the list:
+
+```js
+import { lens } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/effects/lens.min.js';
+
+register(ripple, lens);
+mount(element, { effect: ['ripple', { name: 'lens', strength: 0.5 }] });
+```
+
+Each effect keeps its own settings and state. Their offsets and rotations add, and their scales and opacities multiply. Any of them can swap a glyph.
+
+`strength`, from 0 to 1 (default 1), scales what one effect does: at 0.5, the lens moves the letters aside and grows them half as much. The swaps of an effect with strength 0.5 count for half of the glyphs, the same half each time (the glyphs whose `seed` is below 0.5). One effect with a strength, such as `effect: { name: 'lens', strength: 0.5 }`, is a stack of one.
+
+An effect without `frame()`, such as `'breathe'`, runs in a stack only in frames where the pointer moved, and only its swaps count, as when it runs alone. The stack runs in the same one frame loop as a single effect: each effect's `speed` is still multiplied by the `speed` option, and the loop stops when every effect is at rest.
+
+[Custom effects](#custom-effects) stack too. Keep a glyph's state in `g.fx` and the mount's state in `f.state`, never in module variables: the engine gives each effect in a stack its own. In a stack, `paint()` gets the values of the whole stack in `out`. The engine eases the glyphs back to rest only when every effect's `frame()` returns false, so an effect that stops while another one still runs drops what it set at once.
 
 ## Custom effects
 
@@ -182,7 +204,7 @@ An effect has these fields. Only `name` and `glyph` are required.
 | `frame(f)` | Called once per frame, before `glyph()`. Return true while the effect still moves something, and the loop keeps running. Return false, and the loop can sleep: the engine eases every glyph back to rest in 0.2 s (divided by the `speed` option). If `frame()` returns true again before that, the new outputs replace the eased ones at once. Without `frame()`, `glyph()` runs only in frames where the pointer moved, and swaps are its only output, as in `'breathe'`. |
 | `glyph(g, out, f)` | Called for each glyph in frames where `frame()` returned true. Set the fields of `out`. |
 | `paint(ctx, g, out, f)` | Draws extras for one glyph, such as sparks or dots, after the engine draws the glyph. It runs only if `glyph()` set `out.paint`. `ctx` is in CSS px, and the engine wraps each call in `save()` and `restore()`. `out` holds the glyph's values from this frame. |
-| `reach` | How far a glyph or its paint can go from its slot, in line heights. The engine redraws that much around it, and in the `'lines'` layout it clips what goes further. Default 1. |
+| `reach` | How far a glyph or its paint can go from its slot, in line heights. The engine redraws that much around it, and in a layout with `bands`, such as `'lines'`, it clips what goes further. Default 1. |
 
 `g` is one glyph. The engine owns every field except `fx`: read them, but do not write them. The engine never calls `glyph()` for the anchor word, but its glyphs are in `f.glyphs`.
 
@@ -192,7 +214,7 @@ An effect has these fields. Only `name` and `glyph` are required.
 | `line`, `col` | The line of the source text, and the position in that line, from 0. |
 | `cx`, `cy` | The centre of the slot at rest, in CSS px. The layout sets it. |
 | `w` | The size of the slot along the text, in CSS px. It moves on a spring as glyphs swap. |
-| `r` | The angle of the slot, in radians. 0, except in the ring layout. |
+| `r` | The angle of the slot, in radians. The layout sets it: 0 in `'lines'`, `'columns'` and `'grid'`. |
 | `ch`, `g` | The source character, and the glyph shown now. |
 | `seed` | A random number in [0, 1), fixed for this glyph. |
 | `anchor` | true for the glyphs of the anchor word. |
@@ -206,7 +228,7 @@ An effect has these fields. Only `name` and `glyph` are required.
 | `scale` | 1 | Size. 1 is normal. |
 | `rotate` | 0 | Rotation in radians, added to the slot angle. |
 | `alpha` | 1 | Opacity, from 0 to 1. It applies to the glyph, its box and its label. |
-| `swap` | false | true: the glyph swaps now. It scrambles for a moment, then settles, as under the pointer. With `rest: 'plain'`, it counts only while the pointer is on the text. |
+| `swap` | false | true: the glyph swaps now. It scrambles for a moment, then settles, as under the pointer. With `rest: 'plain'`, it counts only while the pointer is on the text, and for a moment after [`burst()`](#drive-it-from-your-code). |
 | `paint` | false | true: the engine calls `paint()` for this glyph in this frame. |
 
 `f` is what the effect gets in each frame.
@@ -227,6 +249,86 @@ An effect has these fields. Only `name` and `glyph` are required.
 | `state` | Free for the effect: state for this mount. It starts as `{}`. The engine clears it when the effect changes. |
 | `glyphs` | Every glyph, in text order, so `f.glyphs[g.i]` is `g`. |
 
+## Custom layouts
+
+A layout is an object with a name and a `place()` function. The four built-in layouts use the same interface, `'lines'` too. This one centres the lines on a sine wave and turns each glyph with the slope. [`docs/examples/sine.js`](docs/examples/sine.js) holds it, and the demo imports it from there:
+
+```js
+// sine: a custom layout, written with the same public interface as the built-in ones. The lines
+// are centred, on a baseline that runs as a sine wave, and each glyph turns with the wave's slope.
+// amplitude: the height of the wave above and below the line's middle, in em.
+// wavelength: the length of one wave, in em.
+
+export var sine = {
+  name: 'sine',
+  defaults: { amplitude: 0.4, wavelength: 7 },
+  // The widest line fits the width, as in 'lines', with room for the wave above and below.
+  size: function (m) {
+    var most = 1;
+    // An anchored line is as wide as twice its longer side, since the anchor stays in the middle.
+    m.lines.forEach(function (L) { most = Math.max(most, L.a1 ? 2 * Math.max(L.mid, L.natural - L.mid) : L.natural); });
+    var fs = m.fit ? Math.max(8, Math.min(m.maxSize, m.width / (most * 1.2))) : m.fs;
+    return { fs: fs, height: Math.ceil((m.lines.length * m.lineEm + 2 * m.settings.amplitude) * fs) };
+  },
+  // From the slot sizes w: each glyph's centre (cx, cy) and angle (r). The anchor word's middle
+  // stays at the middle of the width, so it never moves.
+  place: function (m) {
+    var a = m.settings.amplitude * m.fs, k = 2 * Math.PI / (m.settings.wavelength * m.fs);
+    m.lines.forEach(function (L, i) {
+      var cs = L.cells, x = 0, left, mid = a + (i + 0.5) * m.lineH;
+      cs.forEach(function (c) { c.x = x; x += c.w; });
+      left = L.a1 ? (m.width - cs[L.a0].x - cs[L.a1 - 1].x - cs[L.a1 - 1].w) / 2 : (m.width - x) / 2;
+      cs.forEach(function (c) {
+        var t = left + c.x + c.w / 2;
+        c.cx = t;
+        c.cy = mid + a * Math.sin(k * t);
+        c.r = Math.atan(a * k * Math.cos(k * t));
+      });
+    });
+  }
+};
+```
+
+Pass the object as `layout` to use its defaults, or pass it to `register` and use its name with settings:
+
+```js
+import { sine } from './sine.js';  // your copy of docs/examples/sine.js
+
+register(sine);
+mount(element, { layout: { name: 'sine', amplitude: 0.6, wavelength: 9 } });  // in em
+```
+
+A layout has these fields. Only `name` and `place` are required.
+
+| Field | What it does |
+|---|---|
+| `name` | The name for `layout` and `register`. |
+| `defaults` | Settings and their default values. The user's `layout: { name, ...settings }` goes over them. |
+| `size(m)` | Returns `{ fs, height, pad }`: the font size and the canvas height, in CSS px, and `pad` (optional), the em that every slot gets along the text on top of its glyph's width. The engine calls it on start, resize, font load and `update`, never in the frame loop, so it may read `m.viewH`. Without `size()`, the engine sizes the text as `'lines'` does: with `fit`, the widest line fits the width, and each line is one line height tall. |
+| `place(m)` | Sets `cx`, `cy` and `r` of every glyph from the slot sizes `w`. The engine calls it after `size()`, and in each frame where something changed. Return true while you move something on springs of your own, and the engine calls it in the next frame too. Use only what `m` holds: do not read the page. Keep the anchor word still. |
+| `bands` | true: line i is the strip of the canvas from i to i + 1 line heights, and a slot change moves only its own line. The engine then redraws only the changed strips. Otherwise it redraws everything. |
+| `vertical` | true: the slots stack down the canvas, and labels read down beside their box instead of under it. |
+
+`m` is what the layout gets. Sizes are in CSS px, unless the field says em.
+
+| Field | What it holds |
+|---|---|
+| `width`, `height` | The element's content width, and the canvas height that `size()` returned. |
+| `viewH` | The viewport height. Read it only in `size()`. |
+| `fs` | The font size (1 em). In `size()`, it is the element's CSS font size with `fit: false`, and 0 with `fit`. |
+| `fit`, `maxSize`, `expand` | The options of the same name. |
+| `speed` | The `speed` option, at least 0.25. |
+| `lineEm` | The line height, in em. |
+| `lineH`, `boxH` | The line height and the box height, from the font size that `size()` returned. |
+| `lines` | One object per line of the text. `cells`: its glyphs. `a0`, `a1`: its anchor word is the glyphs from `a0` up to `a1`, not included; `a1` is 0 if the line has no anchor. `natural`: the line's plain size along the text, in em. `mid`: the middle of its anchor word, in em from the start of the line. A layout can keep its own data for a line on this object, as `'lines'` keeps `top` and `left`. |
+| `anchor` | The anchor word, `{ line, from, to }`, or null. Its glyphs go from `from` up to `to`, not included. |
+| `settings` | The layout's `defaults`, with the user's settings over them. |
+| `state` | Free for the layout: state for this mount. It starts as `{}`. The engine clears it after each `size()`, before it calls `place()`. |
+| `dirty` | In `place()`: true for each line whose slots changed since the last call. A layout can skip the other lines, as `'lines'` does. |
+| `dt` | The real time since the last frame, in ms. 0 outside the frame loop. |
+
+Each glyph in `cells` has the fields of `g` in [Custom effects](#custom-effects), and three more: `pw`, the size of the slot along the text at rest, in em; `peak`, the size that `w` moves to, in CSS px; and `x`, free for the layout, for example for the slot's offset along its line. The built-in layouts in [`src/layouts/`](src/layouts/) are more examples.
+
 ## Mixed scripts
 
 `scripts` mixes in letters from Greek and Cyrillic. Each swap of a Latin letter picks a script by weight. `'latin'` gives a math glyph or a symbol, as without `scripts`. `'greek'` and `'cyrillic'` give a letter of that script that looks like the Latin one: e → ε or э, n → η or п, R → Я.
@@ -243,9 +345,9 @@ The default, `null`, is Latin only. A letter with no look-alike in the picked sc
 The core, `mathglyph.min.js`, has the `'lines'` layout and the `'breathe'` effect. Each other layout and effect is a module of its own, which exports one object with the module's name. Import the ones you use, and pass them to `register` before `mount`:
 
 ```js
-import { mount, register } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.1/dist/mathglyph.min.js';
-import { ring } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.1/dist/layouts/ring.min.js';
-import { firework } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.1/dist/effects/firework.min.js';
+import { mount, register } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/mathglyph.min.js';
+import { ring } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/layouts/ring.min.js';
+import { firework } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/effects/firework.min.js';
 
 register(ring, firework);
 mount(document.getElementById('hero'), { layout: 'ring', effect: 'firework' });
@@ -254,7 +356,7 @@ mount(document.getElementById('hero'), { layout: 'ring', effect: 'firework' });
 With a plain script tag, load the all-in-one build. It has every layout and effect registered, and the Greek, Cyrillic and CJK tables:
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.1/dist/mathglyph.all.iife.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/mathglyph.all.iife.min.js"></script>
 <script>
   MathGlyph.mount(document.getElementById('hero'), { layout: 'ring', effect: 'firework' });
 </script>
@@ -267,22 +369,22 @@ Every file is in `dist/`, and the links go to jsDelivr. `dist/mathglyph.js` is t
 <!-- numbers: sizes -->
 | File | What it holds | Minified | Gzipped |
 |---|---|--:|--:|
-| [`mathglyph.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.1/dist/mathglyph.min.js) | The core, as an ES module: `mount`, `register`, the tables, `'lines'` and `'breathe'`. | 28,790 B | 13,264 B |
-| [`mathglyph.iife.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.1/dist/mathglyph.iife.min.js) | The core for a script tag, on the global `MathGlyph`, with the Greek, Cyrillic and CJK tables. | 30,975 B | 14,661 B |
-| [`mathglyph.all.iife.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.1/dist/mathglyph.all.iife.min.js) | The script-tag build with every layout and effect registered. | 41,249 B | 19,051 B |
-| [`languages.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.1/dist/languages.min.js) | The Greek, Cyrillic and CJK look-alike tables. | 1,762 B | 1,086 B |
-| [`layouts/columns.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.1/dist/layouts/columns.min.js) | The `'columns'` layout. | 1,305 B | 700 B |
-| [`layouts/grid.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.1/dist/layouts/grid.min.js) | The `'grid'` layout. | 1,920 B | 999 B |
-| [`layouts/ring.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.1/dist/layouts/ring.min.js) | The `'ring'` layout. | 1,027 B | 544 B |
-| [`effects/ripple.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.1/dist/effects/ripple.min.js) | The `'ripple'` effect. | 1,116 B | 713 B |
-| [`effects/firework.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.1/dist/effects/firework.min.js) | The `'firework'` effect. | 1,378 B | 826 B |
-| [`effects/lens.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.1/dist/effects/lens.min.js) | The `'lens'` effect. | 1,040 B | 648 B |
-| [`effects/cascade.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.1/dist/effects/cascade.min.js) | The `'cascade'` effect. | 995 B | 611 B |
-| [`effects/shatter.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.1/dist/effects/shatter.min.js) | The `'shatter'` effect. | 1,951 B | 1,169 B |
+| [`mathglyph.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/mathglyph.min.js) | The core, as an ES module: `mount`, `register`, the tables, `'lines'` and `'breathe'`. | 30,814 B | 14,145 B |
+| [`mathglyph.iife.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/mathglyph.iife.min.js) | The core for a script tag, on the global `MathGlyph`, with the Greek, Cyrillic and CJK tables. | 32,999 B | 15,537 B |
+| [`mathglyph.all.iife.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/mathglyph.all.iife.min.js) | The script-tag build with every layout and effect registered. | 43,282 B | 19,970 B |
+| [`languages.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/languages.min.js) | The Greek, Cyrillic and CJK look-alike tables. | 1,762 B | 1,086 B |
+| [`layouts/columns.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/layouts/columns.min.js) | The `'columns'` layout. | 1,305 B | 700 B |
+| [`layouts/grid.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/layouts/grid.min.js) | The `'grid'` layout. | 1,920 B | 999 B |
+| [`layouts/ring.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/layouts/ring.min.js) | The `'ring'` layout. | 1,027 B | 544 B |
+| [`effects/ripple.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/effects/ripple.min.js) | The `'ripple'` effect. | 1,116 B | 713 B |
+| [`effects/firework.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/effects/firework.min.js) | The `'firework'` effect. | 1,378 B | 826 B |
+| [`effects/lens.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/effects/lens.min.js) | The `'lens'` effect. | 1,040 B | 648 B |
+| [`effects/cascade.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/effects/cascade.min.js) | The `'cascade'` effect. | 995 B | 611 B |
+| [`effects/shatter.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/effects/shatter.min.js) | The `'shatter'` effect. | 1,951 B | 1,169 B |
 
 ### Package exports
 
-mathglyph is not on npm yet. To install it from GitHub, run `npm install github:8xb300/mathglyph#v0.5.1`. The package exports the core, the languages, and every module by name, with their types:
+mathglyph is not on npm yet. To install it from GitHub, run `npm install github:8xb300/mathglyph#v0.6.0`. The package exports the core, the languages, and every module by name, with their types:
 
 ```js
 import { mount, register } from 'mathglyph';
@@ -298,8 +400,8 @@ Every option has a default. Pass any of them to `mount`, or change them later wi
 | Option | Default | What it does |
 |---|---|---|
 | `lines` | `['plain text, now with', 'a *math* accent']` | One string per row. Wrap words in `*stars*` to highlight them. |
-| `layout` | `'lines'` | How the slots are placed: `'lines'`, `'columns'`, `'grid'` or `'ring'`, a name with settings (`{ name, ...settings }`), or your own layout object (`Layout` in `dist/mathglyph.d.ts`). See [Layouts](#layouts). |
-| `effect` | `'breathe'` | What the pointer does: `'breathe'`, `'ripple'`, `'firework'`, `'lens'`, `'cascade'` or `'shatter'`, a name with settings (`{ name, ...settings }`), or your own effect object. See [Effects](#effects) and [Custom effects](#custom-effects). |
+| `layout` | `'lines'` | How the slots are placed: `'lines'`, `'columns'`, `'grid'` or `'ring'`, a name with settings (`{ name, ...settings }`), or your own layout object (`Layout` in `dist/mathglyph.d.ts`). See [Layouts](#layouts) and [Custom layouts](#custom-layouts). |
+| `effect` | `'breathe'` | What the pointer does: `'breathe'`, `'ripple'`, `'firework'`, `'lens'`, `'cascade'` or `'shatter'`, a name with settings (`{ name, ...settings }`), your own effect object, or a list of these that run together. The settings can include a `strength`, from 0 to 1. See [Effects](#effects), [Stack effects](#stack-effects) and [Custom effects](#custom-effects). |
 | `scripts` | `null` | Scripts that swaps take look-alike letters from: `['latin', 'greek', 'cyrillic']`, or names with weights, like `{ latin: 2, greek: 1 }`. `null` is Latin only. See [Mixed scripts](#mixed-scripts). |
 | `palette` | `'pastel'` | `'pastel'`, `'ember'`, `'ice'`, `'mono'`, `'shimmer'`, or an array of CSS colours. `'shimmer'` is the colours of the glyphs in the background of 8xb300.org. Its navy is `#6475d8`, lightened from the site's `#131836` so it reads on dark backgrounds. |
 | `substitute` | `0.35` | Share of letters swapped at rest. |
@@ -392,7 +494,7 @@ mount(element, {
 
 ## API
 
-`mount(element, options)` starts the effect and returns four methods:
+`mount(element, options)` starts the effect and returns an object with these methods:
 
 ```js
 const glyphs = mount(element, options);
@@ -402,6 +504,8 @@ glyphs.replay();                      // run the intro again
 glyphs.reroll();                      // pick new glyphs at rest
 glyphs.destroy();                     // stop everything and restore the element
 ```
+
+It also has `burst`, `setPointer`, `clearPointer`, `pause`, `resume`, `step`, `on` and `off`, for your own code. See [Drive it from your code](#drive-it-from-your-code).
 
 `register(...modules)` adds layouts and effects, so that `layout` and `effect` can name them. Call it before `mount`. See [Modules](#modules).
 
@@ -418,13 +522,50 @@ The module also exports its built-in tables:
 Use them to build on the defaults:
 
 ```js
-import { mount, sets, palettes } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.1/dist/mathglyph.min.js';
+import { mount, sets, palettes } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/mathglyph.min.js';
 
 mount(element, {
   symbols: Object.keys(sets).filter((name) => name !== 'greek'),  // every group but Greek
   palette: [...palettes.ice, '#ffffff'],                           // ice, plus white
 });
 ```
+
+### Drive it from your code
+
+The object that `mount` returns can also move the pointer and the clock, so a script, a scroll position or a recorder can drive the effect. `x` and `y` are CSS px from the top left of the canvas that mathglyph draws in. The canvas is the element's first child.
+
+```js
+const fx = mount(element, { rest: 'plain', intro: false });
+const canvas = element.firstElementChild;
+
+// Record a burst in the middle of the text, frame by frame, until the text is at rest again.
+const frames = [];
+let done = false;
+const off = fx.on('settle', () => { done = true; });
+fx.pause();
+fx.burst(canvas.clientWidth / 2, canvas.clientHeight / 2);
+while (!done && frames.length < 600) {  // at most 10 s
+  fx.step(1000 / 60);                   // one frame of 1/60 s
+  frames.push(canvas.toDataURL());
+}
+off();
+fx.resume();
+```
+
+| Method | What it does |
+|---|---|
+| `burst(x, y)` | The pointer touches (x, y) for one frame and leaves. For 400 ms after (divided by the `speed` option), swaps still count as if the pointer were on the text, so what the effect started can play out. With `rest: 'plain'`, the text then goes back to plain, as after a real pointer leaves. |
+| `setPointer(x, y)` | Moves the pointer to (x, y), and it stays there, as a real pointer that stops. Real pointer events still apply: a real pointer on the text moves it, and it leaves when a real pointer leaves the text or the window, when the window loses focus, or when the page is hidden. |
+| `clearPointer()` | The pointer leaves the text, as when a real pointer leaves it. |
+| `pause()` | Stops the frame loop. Nothing moves until `resume()`, except by `step()`. |
+| `resume()` | Ends the pause. The loop runs again while something moves. |
+| `step(ms)` | Only while paused: moves time on by `ms`, in equal frames of at most 1/60 s. When it returns, the canvas shows the last frame. The `revert` delay is a real timer, so `step()` does not move it on. |
+| `on(event, fn)` | Calls `fn` at each `event`, `'wake'` or `'settle'`. Returns a function that removes the listener. |
+| `off(event, fn)` | Removes a listener that `on()` added. |
+
+`'wake'` comes when the frame loop starts to run frame after frame. `'settle'` comes when it stops because nothing moves. The events also come in the frames that `step()` runs. When the loop stops because the text is off screen, the tab is hidden or you call `pause()`, no event comes. With `motion: 'always'`, the loop runs on while the text is on screen, and `'settle'` does not come.
+
+With `prefers-reduced-motion: reduce` or `motion: 'still'`, `burst()` and `setPointer()` do nothing. The hooks add no timer. A call can start the frame loop, and the loop stops again when nothing moves, so nothing runs while idle.
 
 ## Fonts
 
@@ -459,8 +600,8 @@ Lines are split into grapheme clusters with `Intl.Segmenter`, so any script work
 The built-in look-alike table covers Latin. Greek, Cyrillic and CJK tables ship as a separate module, `dist/languages.min.js` (about 1 KB gzipped), so pages that don't need them don't load them. Plug them in with `lookalikes`:
 
 ```js
-import { mount } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.1/dist/mathglyph.min.js';
-import { greek, cyrillic } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.1/dist/languages.min.js';
+import { mount } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/mathglyph.min.js';
+import { greek, cyrillic } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/languages.min.js';
 
 mount(element, {
   lines: ['каждый знак — *переменная*'],
@@ -479,9 +620,9 @@ Greek letters also get math-alphabet Greek (𝛂 𝜷 𝝅), with or without the
 Chinese, Japanese and Korean are sometimes written in vertical columns, and the `'columns'` layout is made for them. Keep the text short, give each column a few characters, and let `fit` choose a large font:
 
 ```js
-import { mount, register } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.1/dist/mathglyph.min.js';
-import { columns } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.1/dist/layouts/columns.min.js';
-import { cjk } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.1/dist/languages.min.js';
+import { mount, register } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/mathglyph.min.js';
+import { columns } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/layouts/columns.min.js';
+import { cjk } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/languages.min.js';
 
 register(columns);
 mount(element, {
@@ -542,19 +683,20 @@ What does not work:
 Hovering over 2,000 characters (25 lines of 80) for 5 seconds, with a synthetic pointer that crosses every line. Median of 3 runs on Linux x86_64, headless Chromium 156, software rendering. `bench/run.mjs` measures it.
 
 <!-- numbers: bench -->
-| | First version | DOM renderer | v0.3.0 | v0.4.0 |
-|---|---:|---:|---:|---:|
-| Main-thread time per frame while hovering | 8.1 ms | 5.7 ms | 3.0 ms | **3.0 ms** |
-| Browser CPU while hovering (all processes) | 88% | 63% | 28% | **28%** |
-| Frames over 20 ms | 0 | 0 | 0 | **0** |
-| Timer and frame wakeups in 10 s at rest | 167 | 0 | 0 | **0** |
-| Wakeups in 5 s off screen, `motion: 'always'` | 83 | 0 | 0 | **0** |
-| Size of the core, minified and gzipped | 6,018 B | | 10,545 B | 13,147 B |
+| | First version | DOM renderer | v0.3.0 | v0.4.0 | v0.6.0 |
+|---|---:|---:|---:|---:|---:|
+| Main-thread time per frame while hovering | 8.1 ms | 5.7 ms | 3.0 ms | 3.0 ms | **3.0 ms** |
+| Browser CPU while hovering (all processes) | 88% | 63% | 28% | 28% | **28%** |
+| Frames over 20 ms | 0 | 0 | 0 | 0 | **0** |
+| Timer and frame wakeups in 10 s at rest | 167 | 0 | 0 | 0 | **0** |
+| Wakeups in 5 s off screen, `motion: 'always'` | 83 | 0 | 0 | 0 | **0** |
+| Size of the core, minified and gzipped | 6,018 B | | 10,545 B | 13,147 B | 14,145 B |
 
 - *First version*: the original script, one `<span>` per character, CSS width transitions, a 60 ms `setInterval` that never stops, and `getBoundingClientRect` on every character for each pointer move.
 - *DOM renderer*: this engine drawing into absolutely positioned spans moved with transforms. It ran 2.2× slower than canvas and added 0.8 KB, so it was dropped. It lives in commit `1f75b33` if you want to compare.
 - *v0.3.0*: the canvas renderer before layouts and effects. About 3 KB of its 10 KB were the symbol tables. It does more than the first version: fonts, languages, labels, pausing, springs and crossfades.
-- *v0.4.0*: what ships. The same canvas renderer, with layouts, effects and `scripts`. This table uses the defaults, `'lines'` and `'breathe'`.
+- *v0.4.0*: the same canvas renderer, with layouts, effects and `scripts`. This table uses the defaults, `'lines'` and `'breathe'`.
+- *v0.6.0*: what ships. It adds stacked effects, custom layouts and the hooks for your code (about 0.9 KB gzipped). With the defaults, the frame does the same work as in v0.4.0.
 
 The same hover test with each effect, in the `'lines'` layout:
 
@@ -566,6 +708,9 @@ The same hover test with each effect, in the `'lines'` layout:
 | `'lens'` | 3.74 ms | 34% | 0 |
 | `'cascade'` | 3.27 ms | 31% | 0 |
 | `'shatter'` | 4.25 ms | 37% | 0 |
+| `['ripple', 'lens']`, stacked | 4.60 ms | 40% | 0 |
+
+The stacked row is from v0.6.0. In the same run, on the same machine, `'ripple'` alone took 3.22 ms and `'lens'` alone 3.91 ms. `node bench/run.mjs effects ripple lens ripple,lens` runs these three.
 
 To run the benchmark: `npm install && npm run build`, then `npm i -D playwright && npx playwright install chromium && node bench/run.mjs`. `node bench/run.mjs effects` runs the hover test once per effect. `node bench/plain.mjs` checks that the demo, and every layout with every effect, go back to plain text with `rest: 'plain'` and then stop.
 

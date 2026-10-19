@@ -200,6 +200,7 @@ var PEAK_MS = 350;   // a scrambling slot keeps its widest recent width, relaxin
 var FADE_MS = 80;    // crossfade from the old glyph to the new one
 var REVERT_WAVE_MS = 700;  // spread of the staggered wave back to plain, ms
 var RELEASE_MS = 200;      // what an effect moved eases back to rest in this long once frame() returns false
+var BURST_MS = 400;        // after burst(), swaps still count this long, as if the pointer had stayed
 
 var segmenter = typeof Intl !== 'undefined' && Intl.Segmenter
   ? new Intl.Segmenter(undefined, { granularity: 'grapheme' }) : null;
@@ -371,6 +372,9 @@ export function mount(root, options) {
   var reverting = [], revertStart = 0, revertTimer = 0;
   var raf = 0, dead = false, onScreen = true, needMeasure = false, needLayout = false;
   var pointer = null, pointerMoved = false, rect = null;
+  // Outside hooks: burst() and its point, pause() and step()'s clock, and the event listeners.
+  var burstAt = null, burstBack = null, burstEnd = 0, paused = false, stepNow = 0, running = false;
+  var listeners = {};
   var mq = win.matchMedia ? win.matchMedia('(prefers-reduced-motion: reduce)') : null;
   var reduce = !!(mq && mq.matches);
   var renderer, io = null, ro = null;
@@ -715,7 +719,7 @@ export function mount(root, options) {
     moving = [];
     dirty = M.dirty = [];
     M.anchor = null;
-    F.state = {};
+    useEffect();
     cancelRevert();
     src.forEach(function (text, li) {
       var parsed = parseLine(String(text));
@@ -843,7 +847,7 @@ export function mount(root, options) {
     M.speed = Math.max(o.speed, 0.25);
     M.lineEm = LINE_H;
     M.fs = o.fit ? 0 : parseFloat(win.getComputedStyle(root).fontSize) || 16;
-    var s = lay.size(M);
+    var s = (lay.size || LINES.size)(M);
     fs = M.fs = s.fs;
     H = M.height = s.height;
     pad = s.pad || 0;
@@ -1123,10 +1127,10 @@ export function mount(root, options) {
 
   // ---- the loop: runs only while something moves ----
   function animated() { return !reduce && o.motion !== 'still'; }
-  function active() { return !dead && onScreen && !document.hidden; }
+  function active() { return !dead && !paused && onScreen && !document.hidden; }
   function busy() {
     return moving.length || hot.length || decoding || reverting.length || fxOn || fxCells.length || layBusy ||
-      (o.motion === 'always' && animated());
+      burstAt || burstEnd || (o.motion === 'always' && animated());
   }
 
   function wake() {
@@ -1136,10 +1140,17 @@ export function mount(root, options) {
   function frame(now) {
     raf = 0;
     if (!active()) return;
+    run(now, lastFrame ? Math.min(now - lastFrame, 100) : 1000 / 60);
+    if (lastFrame) raf = win.requestAnimationFrame(frame);
+  }
+
+  // One frame at time now, dt ms after the last one: from requestAnimationFrame, or from step().
+  function run(now, dt) {
     if (needMeasure) measure();
     if (needLayout) layout();
-    var dt = lastFrame ? Math.min(now - lastFrame, 100) : 1000 / 60;
     if (animated()) runEffect(now, dt);
+    if (burstAt) endBurst(now);
+    if (burstEnd && now >= burstEnd) { burstEnd = 0; if (!pointer) scheduleRevert(); }
     if (animated() && (hot.length || decoding || reverting.length || o.motion === 'always')) {
       if (!lastTick || now - lastTick > 4 * TICK) lastTick = now - TICK;
       while (now - lastTick >= TICK) { lastTick += TICK; tick(lastTick); }
@@ -1152,7 +1163,9 @@ export function mount(root, options) {
     flush();
     M.dt = 0;
     lastFrame = busy() ? now : 0;
-    if (lastFrame) raf = win.requestAnimationFrame(frame);
+    // A frame that leaves nothing for the next one (a resize, a font) is no wake.
+    if (lastFrame && !running) { running = true; emit('wake'); }
+    else if (!lastFrame && running) { running = false; emit('settle'); }
   }
 
   function stepWidths(dt) {
@@ -1241,9 +1254,9 @@ export function mount(root, options) {
   }
 
   // A swap makes the glyph hot: it scrambles for a moment, then settles. With rest: 'plain' only
-  // the real pointer swaps, so the text always gets back to plain after it leaves.
+  // the pointer swaps (or a burst(), for a moment), so the text always gets back to plain after.
   function swap(c, now) {
-    if (!pointer && o.rest === 'plain') return;
+    if (!pointer && !burstEnd && o.rest === 'plain') return;
     wakeCell(c);
     c.hot = now + 260 / Math.max(o.speed, 0.25);
     if (!c.inHot) { c.inHot = true; hot.push(c); }
@@ -1319,13 +1332,85 @@ export function mount(root, options) {
     releaseStart = 0;
   }
 
+  // An effect, or a stack of them: a list, or one effect with a strength.
   function useEffect() {
-    var r = resolve(EFFECTS, o.effect, 'breathe');
+    var e = o.effect, list = Array.isArray(e) ? e : e && e.strength != null ? [e] : null, r;
     clearFx();
-    fx = r.mod;
-    F.settings = r.settings;
+    if (list) fx = stackOf(list);
+    else {
+      r = resolve(EFFECTS, e, 'breathe');
+      fx = r.mod;
+      F.settings = r.settings;
+    }
     F.state = {};
-    cells.forEach(function (c) { c.fx = undefined; });
+    cells.forEach(function (c) { c.fx = c.fxs = undefined; });
+  }
+
+  // Several effects as one. Each keeps its own settings, state and glyph state (g.fx), and runs
+  // in the order of the list. Offsets and rotation add, scale and opacity multiply, and any of them
+  // can swap a glyph. strength, 0 to 1, scales what one does to the glyphs; a swap of an effect
+  // with strength s counts for the glyphs whose seed is below s.
+  function stackOf(list) {
+    var subs = list.map(function (v) {
+      var r = resolve(EFFECTS, v, 'breathe'), w = v && v.strength;
+      delete r.settings.strength;
+      return { mod: r.mod, settings: r.settings, state: {}, w: w == null ? 1 : Math.max(0, Math.min(1, +w || 0)), on: false };
+    });
+    var T = {}, reach = 0;
+    subs.forEach(function (s) { reach = Math.max(reach, s.mod.reach >= 0 ? s.mod.reach : 1); });
+    function use(s, g, k) {
+      F.settings = s.settings;
+      F.state = s.state;
+      if (g) g.fx = g.fxs[k];
+    }
+    return {
+      name: subs.map(function (s) { return s.mod.name; }).join('+'),
+      reach: reach,
+      frame: function (f) {
+        var any = false;
+        for (var k = 0; k < subs.length; k++) {
+          var s = subs[k];
+          use(s);
+          // Without frame(), an effect runs in the frames where the real pointer moved, as alone.
+          s.on = s.mod.frame ? !!s.mod.frame(f) : !!(pointer && f.moved);
+          if (s.on) any = true;
+        }
+        return any;
+      },
+      glyph: function (g, out, f) {
+        var mask = 0;
+        if (!g.fxs) g.fxs = [];
+        for (var k = 0; k < subs.length; k++) {
+          var s = subs[k], w = s.w;
+          if (!s.on || !w) continue;
+          T.x = T.y = T.rotate = 0;
+          T.scale = T.alpha = 1;
+          T.swap = T.paint = false;
+          use(s, g, k);
+          s.mod.glyph(g, T, f);
+          g.fxs[k] = g.fx;
+          if (T.swap && (w >= 1 || g.seed < w)) out.swap = true;
+          if (!s.mod.frame) continue;  // as alone: its swaps are its only output
+          out.x += T.x * w;
+          out.y += T.y * w;
+          out.rotate += T.rotate * w;
+          out.scale *= 1 + (T.scale - 1) * w;
+          out.alpha *= 1 + (T.alpha - 1) * w;
+          if (T.paint && s.mod.paint) mask |= 1 << k;
+        }
+        g.fxm = mask;
+        out.paint = mask > 0;
+      },
+      paint: function (ctx, g, out, f) {
+        for (var k = 0; k < subs.length; k++) {
+          if (!(g.fxm & (1 << k))) continue;
+          use(subs[k], g, k);
+          ctx.save();
+          subs[k].mod.paint(ctx, g, out, f);
+          ctx.restore();
+        }
+      }
+    };
   }
 
   function useLayout() {
@@ -1337,10 +1422,74 @@ export function mount(root, options) {
   function onMove(e) {
     if (!animated()) return;
     if (!rect) rect = renderer.el.getBoundingClientRect();
-    pointer = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    setPointer(e.clientX - rect.left, e.clientY - rect.top);
+  }
+
+  // ---- outside hooks: other code on the page drives the pointer and the clock ----
+  // x and y are CSS px from the top left of the canvas.
+  function setPointer(x, y) {
+    if (!animated()) return;
+    pointer = { x: x, y: y };
     pointerMoved = true;
     cancelRevert();
     wake();
+  }
+
+  // The pointer touches (x, y) for one frame and leaves. Swaps still count for BURST_MS after, so
+  // what an effect starts there plays out as under a real touch, then the text settles.
+  function burst(x, y) {
+    if (!animated()) return;
+    if (!burstAt) burstBack = pointer;
+    setPointer(x, y);
+    burstAt = pointer;
+  }
+
+  function endBurst(now) {
+    if (pointer === burstAt) pointer = burstBack;
+    burstAt = burstBack = null;
+    burstEnd = now + BURST_MS / Math.max(o.speed, 0.25);
+  }
+
+  function pause() {
+    paused = true;
+    stepNow = 0;
+    if (raf) { win.cancelAnimationFrame(raf); raf = 0; }
+  }
+
+  function resume() {
+    if (!paused) return;
+    paused = false;
+    lastFrame = 0;
+    wake();
+  }
+
+  // While paused: moves time on by ms, in frames of at most 1/60 s, for a recording made frame
+  // by frame.
+  function step(ms) {
+    if (!paused || dead || !(ms > 0)) return;
+    var n = Math.ceil(ms * 0.06 - 1e-6), dt = ms / n;
+    if (!stepNow) stepNow = lastFrame || win.performance.now();
+    for (var k = 0; k < n; k++) {
+      stepNow += dt;
+      run(stepNow, dt);
+    }
+  }
+
+  // Events: 'wake' when the loop starts to run frame after frame, 'settle' when it stops because
+  // nothing moves.
+  function on(name, fn) {
+    (listeners[name] = listeners[name] || []).push(fn);
+    return function () { off(name, fn); };
+  }
+
+  function off(name, fn) {
+    var a = listeners[name], i = a ? a.indexOf(fn) : -1;
+    if (i >= 0) a.splice(i, 1);
+  }
+
+  function emit(name) {
+    var a = listeners[name];
+    if (a && a.length) a.slice().forEach(function (fn) { fn(); });
   }
   // The pointer left the text, the window or the page. Each of these can come with another.
   function onLeave() {
@@ -1488,7 +1637,10 @@ export function mount(root, options) {
     if (document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', onFonts);
   }
 
-  return { update: update, replay: replay, reroll: function () { settleAll(); revertIfGone(); wake(); }, destroy: destroy };
+  return {
+    update: update, replay: replay, reroll: function () { settleAll(); revertIfGone(); wake(); }, destroy: destroy,
+    burst: burst, setPointer: setPointer, clearPointer: onLeave, pause: pause, resume: resume, step: step, on: on, off: off
+  };
 }
 
 export { PALETTES as palettes, SETS as sets, WORDS as words, LOOKALIKE as lookalike, DEFAULTS as defaults };

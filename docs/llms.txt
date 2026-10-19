@@ -1,6 +1,6 @@
 # mathglyph
 
-> mathglyph is a small, dependency-free text effect for websites. It draws monospace text on one canvas. Letters swap to math glyphs (𝕋 𝒢 ∃ ⊗) and move under the pointer. Version 0.5.1, MIT licence.
+> mathglyph is a small, dependency-free text effect for websites. It draws monospace text on one canvas. Letters swap to math glyphs (𝕋 𝒢 ∃ ⊗) and move under the pointer. Version 0.6.0, MIT licence.
 
 Use it for hero headlines, 404 pages and titles. The element keeps its plain text for screen readers, search engines and visitors without JavaScript. mathglyph is not on npm yet: load it from jsDelivr, or install it from GitHub.
 
@@ -13,22 +13,22 @@ Use it for hero headlines, 404 pages and titles. The element keeps its plain tex
 ES module from the CDN (the core has the `lines` layout and the `breathe` effect):
 
 ```js
-import { mount, register } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.1/dist/mathglyph.min.js';
+import { mount, register } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/mathglyph.min.js';
 ```
 
 Script tag, with the global `MathGlyph` (it also has `MathGlyph.greek`, `MathGlyph.cyrillic` and `MathGlyph.cjk`):
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.1/dist/mathglyph.iife.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/mathglyph.iife.min.js"></script>
 ```
 
 Script tag with every layout and effect already registered:
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.1/dist/mathglyph.all.iife.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/mathglyph.all.iife.min.js"></script>
 ```
 
-From GitHub, with a bundler: `npm install github:8xb300/mathglyph#v0.5.1`. Then `import { mount, register } from 'mathglyph'`, `from 'mathglyph/languages'`, `from 'mathglyph/layouts/ring'` and `from 'mathglyph/effects/firework'`. Types are in `dist/mathglyph.d.ts`, and each module has its own `.d.ts`.
+From GitHub, with a bundler: `npm install github:8xb300/mathglyph#v0.6.0`. Then `import { mount, register } from 'mathglyph'`, `from 'mathglyph/languages'`, `from 'mathglyph/layouts/ring'` and `from 'mathglyph/effects/firework'`. Types are in `dist/mathglyph.d.ts`, and each module has its own `.d.ts`.
 
 ## Minimal mount
 
@@ -37,18 +37,19 @@ Put the plain text in the element. `mount` replaces it with the effect. Without 
 ```html
 <h1 id="hero">Every proof starts with a good guess</h1>
 <script type="module">
-  import { mount } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.1/dist/mathglyph.min.js';
+  import { mount } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/mathglyph.min.js';
   const lines = ['Every proof starts', 'with a *good* guess'];
   mount(document.getElementById('hero'), { lines, palette: 'ice' });
 </script>
 ```
 
-`mount(element, options)` returns an object with four methods:
+`mount(element, options)` returns an object with these methods:
 
 - `update(options)`: change any option live. Pass only what changes.
 - `replay()`: run the decode intro again.
 - `reroll()`: pick new glyphs at rest.
 - `destroy()`: stop everything and restore the element.
+- `burst`, `setPointer`, `clearPointer`, `pause`, `resume`, `step`, `on` and `off`: hooks for your own code. See "Drive it from your code" below.
 
 ## Plain at rest
 
@@ -67,8 +68,8 @@ mount(document.getElementById('hero'), {
 Every option has a default. Pass any of them to `mount`, or to `update`. Shares and rates are numbers from 0 to 1. Distances are in em (1 em is the font size) unless the line says px.
 
 - `lines`: string[], default `['plain text, now with', 'a *math* accent']`. One string per row. `*stars*` highlight a word.
-- `layout`: string | { name, ...settings } | Layout, default `'lines'`. One of `'lines'`, `'columns'`, `'grid'`, `'ring'`, or your own layout object.
-- `effect`: string | { name, ...settings } | Effect, default `'breathe'`. One of `'breathe'`, `'ripple'`, `'firework'`, `'lens'`, `'cascade'`, `'shatter'`, or your own effect object.
+- `layout`: string | { name, ...settings } | Layout, default `'lines'`. One of `'lines'`, `'columns'`, `'grid'`, `'ring'`, or your own layout object (see Custom layout).
+- `effect`: string | { name, strength?, ...settings } | Effect, or an array of these, default `'breathe'`. One of `'breathe'`, `'ripple'`, `'firework'`, `'lens'`, `'cascade'`, `'shatter'`, or your own effect object. An array runs the effects together (see Effects). `strength` is from 0 to 1, default 1.
 - `scripts`: string[] | object | null, default `null`. Scripts that swaps take look-alike letters from: `['latin', 'greek', 'cyrillic']`, or weights like `{ latin: 2, greek: 1 }`. `null` is Latin only.
 - `palette`: string | string[], default `'pastel'`. `'pastel'`, `'ember'`, `'ice'`, `'mono'`, `'shimmer'`, or an array of CSS colours.
 - `substitute`: number, default `0.35`. Share of letters swapped at rest.
@@ -109,8 +110,8 @@ Every option has a default. Pass any of them to `mount`, or to `update`. Shares 
 `'lines'` is built in. The others are modules: import them and call `register` before `mount`.
 
 ```js
-import { mount, register } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.1/dist/mathglyph.min.js';
-import { ring } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.1/dist/layouts/ring.min.js';
+import { mount, register } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/mathglyph.min.js';
+import { ring } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/layouts/ring.min.js';
 
 register(ring);
 mount(document.getElementById('hero'), { layout: { name: 'ring', gap: 2 }, lines: ['every letter goes *round*'] });
@@ -128,8 +129,8 @@ Modules are at `dist/layouts/<name>.min.js` and `dist/effects/<name>.min.js`, an
 `effect` sets what the pointer does. `'breathe'` is built in. The others are modules, registered like layouts. Each effect's `speed` is multiplied by the `speed` option. With `prefers-reduced-motion: reduce`, no effect runs.
 
 ```js
-import { mount, register } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.1/dist/mathglyph.min.js';
-import { ripple } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.1/dist/effects/ripple.min.js';
+import { mount, register } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/mathglyph.min.js';
+import { ripple } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/effects/ripple.min.js';
 
 register(ripple);
 const fx = mount(element, { effect: 'ripple' });
@@ -144,6 +145,15 @@ fx.update({ effect: { name: 'ripple', speed: 1.5, gap: 3 } });  // settings you 
 - `'shatter'`: letters break into dots, then come together again. Settings: `speed` 1, `radius` 1.8, `scatter` 0.5 (at most 0.6), `dots` 12.
 
 The `radius`, `gap`, `power`, `fall` and `scatter` settings are in em.
+
+Give `effect` an array to run several effects together, in order. Their offsets and rotations add, their scales and opacities multiply, and any of them can swap a glyph. `strength` (0 to 1, default 1) scales what one effect does, and its swaps count for that share of the glyphs. One effect with a `strength` is a stack of one. An effect without `frame()`, like `'breathe'`, runs in a stack only in frames where the pointer moved, and only its swaps count.
+
+```js
+import { lens } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/effects/lens.min.js';
+
+register(ripple, lens);
+mount(element, { effect: ['ripple', { name: 'lens', strength: 0.5 }] });
+```
 
 ## Custom effect
 
@@ -170,8 +180,43 @@ mount(element, { effect: spin });
 - `reach` is how far a glyph or its paint goes from its slot, in line heights (default 1).
 - `g` has `i`, `line`, `col`, `cx`, `cy`, `w`, `r`, `ch`, `g`, `seed`, `anchor`, `fx`. `f` has `now`, `dt`, `pointer`, `moved`, `radius`, `fs`, `lineH`, `width`, `height`, `speed`, `palette`, `font`, `settings`, `state`, `glyphs`.
 - Do not read the DOM in `frame()` or `glyph()`, because that forces a layout. Use `g` and `f`.
+- Keep a glyph's state in `g.fx` and the mount's state in `f.state`, never in module variables. Each effect in a stack gets its own, so custom effects stack too.
 
 The full types are `Effect` and `Layout` in `dist/mathglyph.d.ts`.
+
+## Custom layout
+
+A layout is a plain object: `{ name, defaults?, size?(m), place(m), bands?, vertical? }`. The four built-in layouts use the same interface. Pass it as `layout`, or pass it to `register` and use its name with settings. An example sets the lines on a sine wave and turns each glyph with the slope: https://github.com/8xb300/mathglyph/blob/main/docs/examples/sine.js
+
+```js
+import { sine } from './sine.js';  // a copy of docs/examples/sine.js
+
+register(sine);
+mount(element, { layout: { name: 'sine', amplitude: 0.6, wavelength: 9 } });  // in em
+```
+
+- `place(m)` sets `cx`, `cy` (the slot's centre, CSS px) and `r` (its angle, radians) of every glyph in `m.lines[i].cells`, from the slot sizes `w` (CSS px). It runs after `size()` and in frames where something changed. Return true to run again in the next frame, for springs of your own. Use only `m`: do not read the page. Keep the anchor word still.
+- `size(m)` is optional. It returns `{ fs, height, pad? }`: the font size and the canvas height in CSS px, and the em that each slot gets on top of its glyph's width. It runs on start, resize, font load and `update`, never in the frame loop. Without it, the engine uses the size of `'lines'`.
+- `m` has `width`, `height`, `viewH`, `fs`, `fit`, `maxSize`, `expand`, `speed`, `lineEm`, `lineH`, `boxH`, `lines`, `anchor`, `settings`, `state`, `dirty`, `dt`. Each `m.lines[i]` has `cells`, `a0` and `a1` (the anchor word is the cells from `a0` up to `a1`, not included; `a1` is 0 without one), `natural` (the plain size along the text, em) and `mid` (the middle of the anchor word, em from the line's start). A layout can keep its own data for a line on these objects.
+- `bands: true`: line i is the strip from i to i + 1 line heights, so the engine redraws only the lines that changed. `vertical: true`: the slots stack down, and labels go beside their box.
+
+## Drive it from your code
+
+The object that `mount` returns has hooks for other code on the page. `x` and `y` are CSS px from the top left of the canvas, which is the element's first child.
+
+```js
+const fx = mount(element, { rest: 'plain' });
+const canvas = element.firstElementChild;
+fx.burst(canvas.clientWidth / 2, canvas.clientHeight / 2);  // as a touch in the middle
+const off = fx.on('settle', () => console.log('at rest'));  // off() removes the listener
+```
+
+- `burst(x, y)`: the pointer touches (x, y) for one frame and leaves. Swaps still count for 400 ms (divided by `speed`) after, so the effect plays out. With `rest: 'plain'`, the text then goes back to plain.
+- `setPointer(x, y)` and `clearPointer()`: move the pointer from your code, and take it off the text. Real pointer events still apply.
+- `pause()` and `resume()`: stop the frame loop, and let it run again.
+- `step(ms)`: only while paused, moves time on by `ms` in frames of at most 1/60 s, and draws them. For frame-by-frame recording.
+- `on(event, fn)` returns a function that removes the listener. `off(event, fn)` removes it too. `'wake'`: the frame loop starts to run frame after frame. `'settle'`: it stops because nothing moves.
+- With reduced motion or `motion: 'still'`, `burst` and `setPointer` do nothing. The hooks add no timer, and the loop still stops when nothing moves.
 
 ## Fonts and languages
 
@@ -190,7 +235,7 @@ mount(element, { fonts: [{ family: 'Noto Sans Math', url: '/your/path/noto-sans-
 Text is split into grapheme clusters with `Intl.Segmenter`, so any script and emoji work. For Greek, Cyrillic and CJK text, plug in the look-alike tables:
 
 ```js
-import { greek, cyrillic } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.1/dist/languages.min.js';
+import { greek, cyrillic } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/languages.min.js';
 
 mount(element, { lines: ['каждый знак — *переменная*'], lookalikes: { ...greek, ...cyrillic } });
 ```
@@ -209,5 +254,5 @@ mount(element, { lines: ['каждый знак — *переменная*'], lo
 
 - README with the full documentation: https://github.com/8xb300/mathglyph#readme
 - Live demo: https://8xb300.github.io/mathglyph/
-- Types: https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.1/dist/mathglyph.d.ts
+- Types: https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/mathglyph.d.ts
 - Contributing: https://github.com/8xb300/mathglyph/blob/main/CONTRIBUTING.md

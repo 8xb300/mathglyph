@@ -2,9 +2,10 @@
 // (The DOM renderer in the README table was measured at commit 1f75b33, where it still existed.)
 //
 //   node bench/run.mjs [original] [canvas] [--runs=3] [--chars=2000]
-//   node bench/run.mjs effects [breathe] [ripple] ... [--runs=3] [--chars=2000]
+//   node bench/run.mjs effects [breathe] [ripple] [ripple,lens] ... [--runs=3] [--chars=2000]
 //
-// effects: only the hover test, once per effect (default: breathe and every module in dist/effects).
+// effects: only the hover test, once per effect (default: breathe, every module in dist/effects, and
+// the stack ripple,lens). Names with commas are a stack, in the bench page's effects syntax.
 //
 // Needs playwright (with its Chromium) and esbuild where require() finds them: a node_modules
 // folder or NODE_PATH. Linux only, because the browser's CPU time comes from /proc.
@@ -280,16 +281,17 @@ function effectsMarkdown({ machine, chars, runs, median, size }) {
     '|---|--:|--:|--:|--:|--:|--:|--:|',
   ];
   for (const [effect, m] of Object.entries(median)) {
-    out.push(`| ${effect} | ${Math.round(m.frames)} | ${ms(m.mainMs, 2)} | ${ms(m.scriptMs, 2)} | ${ms(m.frameP50, 1)} | ` +
+    out.push(`| ${effect.replaceAll(',', ' + ')} | ${Math.round(m.frames)} | ${ms(m.mainMs, 2)} | ${ms(m.scriptMs, 2)} | ${ms(m.frameP50, 1)} | ` +
       `${ms(m.frameP95, 1)} | ${Math.round(m.slowFrames)} | ${m.hoverCpu.toFixed(1)} % |`);
   }
   out.push('', ...sizeTable(size), '', `Median of ${runs} runs on ${machine}.`);
   return out.join('\n');
 }
 
-// The hover test once per effect, with the effects taking turns in each run.
+// The hover test once per effect, with the effects taking turns in each run. A stack of two effects
+// shows what one more effect costs in a frame.
 async function effectsMain(asked, runs, chars) {
-  const effects = asked.length ? asked : ['breathe', ...built('effects')];
+  const effects = asked.length ? asked : ['breathe', ...built('effects'), 'ripple,lens'];
   const server = await serveRepo();
   const all = Object.fromEntries(effects.map((effect) => [effect, []]));
   let version;
@@ -300,7 +302,8 @@ async function effectsMain(asked, runs, chars) {
         version = browser.version();
         for (const effect of effects) {
           console.error(`run ${run} of ${runs}: ${effect}`);
-          const url = `http://127.0.0.1:${server.address().port}/bench/page.html?impl=canvas&chars=${chars}&effect=${effect}`;
+          const param = /[,:]/.test(effect) ? 'effects' : 'effect';
+          const url = `http://127.0.0.1:${server.address().port}/bench/page.html?impl=canvas&chars=${chars}&${param}=${effect}`;
           all[effect].push(await hoverTest(browser, url));
         }
       } finally {
