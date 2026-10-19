@@ -10,11 +10,28 @@ Use it for hero headlines, 404 pages and titles. The element keeps its plain tex
 
 ## Install
 
-From npm, with a bundler (`pnpm add mathglyph`, `yarn add mathglyph` and `bun add mathglyph` work too):
-
 ```sh
 npm i mathglyph
+pnpm add mathglyph
+yarn add mathglyph
+bun add mathglyph
 ```
+
+```js
+import { mount } from 'mathglyph';
+
+mount(document.getElementById('hero'), { lines: ['Every proof starts', 'with a *good* guess'] });
+```
+
+No build step: load it from jsDelivr with a script tag. The same exports are on the global `MathGlyph`.
+
+```html
+<script src="https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/mathglyph.iife.min.js"></script>
+```
+
+Deno: `import { mount } from "npm:mathglyph";`
+
+The long import for layouts, effects and languages:
 
 ```js
 import { mount, register } from 'mathglyph';

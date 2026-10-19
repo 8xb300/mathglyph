@@ -1,3 +1,5 @@
+[![npm](https://img.shields.io/npm/v/mathglyph?style=flat-square&color=cb3837)](https://www.npmjs.com/package/mathglyph) [![provenance](https://img.shields.io/badge/npm-provenance-2ea44f?style=flat-square)](https://www.npmjs.com/package/mathglyph) [![core size](https://img.shields.io/badge/core-14.1%20kB%20gzip-blue?style=flat-square)](#sizes) [![licence: MIT](https://img.shields.io/badge/licence-MIT-yellow?style=flat-square)](#licence)
+
 # mathglyph
 
 A small text effect: monospace text where some letters turn into math glyphs (𝕋 𝒢 ∃ ⊗) and move under the pointer.
@@ -5,6 +7,33 @@ A small text effect: monospace text where some letters turn into math glyphs (�
 [Live demo](https://8xb300.github.io/mathglyph/) · [Demo source in `docs/`](docs/) · [llms.txt](https://8xb300.github.io/mathglyph/llms.txt) · [Contributing](CONTRIBUTING.md)
 
 ![mathglyph preview](docs/preview.webp)
+
+## Install
+
+```sh
+npm i mathglyph
+pnpm add mathglyph
+yarn add mathglyph
+bun add mathglyph
+```
+
+```js
+import { mount } from 'mathglyph';
+
+mount(document.getElementById('hero'), { lines: ['Every proof starts', 'with a *good* guess'] });
+```
+
+No build step: load it from jsDelivr with a script tag. The same exports are on the global `MathGlyph`.
+
+```html
+<script src="https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/mathglyph.iife.min.js"></script>
+```
+
+Deno: `import { mount } from "npm:mathglyph";`
+
+The package has no dependencies and ships its own types.
+
+## What it does
 
 Give it a few lines of text. It shows them in monospace, with a math accent:
 
@@ -44,12 +73,7 @@ A typical text-scramble effect cycles random characters in a fixed grid. mathgly
 
 ## Quick start
 
-```sh
-npm i mathglyph
-pnpm add mathglyph
-yarn add mathglyph
-bun add mathglyph
-```
+Add layouts, effects and languages from their own modules:
 
 ```js
 import { mount, register } from 'mathglyph';
@@ -58,7 +82,7 @@ import { firework } from 'mathglyph/effects/firework';
 import { greek, cyrillic, cjk } from 'mathglyph/languages';
 ```
 
-The package has no dependencies and ships its own types. Without a bundler, load it from jsDelivr, as below, or copy `dist/` into your project.
+Without a bundler, load it from jsDelivr, as below, or copy `dist/` into your project.
 
 ```html
 <h1 id="hero">Every proof starts with a good guess</h1>
@@ -66,15 +90,6 @@ The package has no dependencies and ships its own types. Without a bundler, load
   import { mount } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/mathglyph.min.js';
   const lines = ['Every proof starts', 'with a *good* guess'];  // *stars* highlight a word
   mount(document.getElementById('hero'), { lines, palette: 'ice' });
-</script>
-```
-
-With a plain script tag, the same exports are on the global `MathGlyph`:
-
-```html
-<script src="https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/mathglyph.iife.min.js"></script>
-<script>
-  MathGlyph.mount(document.getElementById('hero'), { lines: ['Every proof starts', 'with a *good* guess'] });
 </script>
 ```
 
