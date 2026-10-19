@@ -95,7 +95,7 @@ Every option has a default. Pass any of them to `mount`, or to `update`. Shares 
 - `tracking`: number (em), default `-0.04`. Extra space between letters.
 - `wordSpacing`: number (em), default `0.3`. The width of a space.
 - `intro`: boolean, default `true`. Left-to-right decode on first show.
-- `speed`: number, default `1`. From `0.25` to `2`. How fast the scramble flickers and settles, and how fast slots and lines glide.
+- `speed`: number, default `1`. At least `0.25`; the demo slider goes to `2`. How fast the scramble flickers and settles, and how fast slots and lines glide.
 - `hoverRadius`: number, default `2.6`. How far the pointer reaches, in character heights.
 - `expand`: boolean, default `true`. Each slot widens to fit its glyph. `false` keeps a strict grid.
 - `base`: string, default `'#8d8b93'`. Colour of plain text.

@@ -366,6 +366,8 @@ With a plain script tag, load the all-in-one build. It has every layout and effe
 
 Every file is in `dist/`, and the links go to jsDelivr. `dist/mathglyph.js` is the core without minification, for bundlers. The types are in `dist/mathglyph.d.ts`, and each module has its own beside it, such as `dist/effects/ripple.d.ts`.
 
+Gzipped: zlib level 9, as `npm run build` prints.
+
 <!-- numbers: sizes -->
 | File | What it holds | Minified | Gzipped |
 |---|---|--:|--:|
@@ -376,11 +378,11 @@ Every file is in `dist/`, and the links go to jsDelivr. `dist/mathglyph.js` is t
 | [`layouts/columns.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/layouts/columns.min.js) | The `'columns'` layout. | 1,305 B | 700 B |
 | [`layouts/grid.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/layouts/grid.min.js) | The `'grid'` layout. | 1,920 B | 999 B |
 | [`layouts/ring.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/layouts/ring.min.js) | The `'ring'` layout. | 1,027 B | 544 B |
-| [`effects/ripple.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/effects/ripple.min.js) | The `'ripple'` effect. | 1,116 B | 713 B |
+| [`effects/ripple.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/effects/ripple.min.js) | The `'ripple'` effect. | 1,116 B | 714 B |
 | [`effects/firework.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/effects/firework.min.js) | The `'firework'` effect. | 1,378 B | 826 B |
 | [`effects/lens.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/effects/lens.min.js) | The `'lens'` effect. | 1,040 B | 648 B |
 | [`effects/cascade.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/effects/cascade.min.js) | The `'cascade'` effect. | 995 B | 611 B |
-| [`effects/shatter.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/effects/shatter.min.js) | The `'shatter'` effect. | 1,951 B | 1,169 B |
+| [`effects/shatter.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/effects/shatter.min.js) | The `'shatter'` effect. | 1,951 B | 1,170 B |
 
 ### Package exports
 
@@ -427,7 +429,7 @@ Every option has a default. Pass any of them to `mount`, or change them later wi
 | `tracking` | `-0.04` | Extra space between letters, in em. Negative values set letters closer. |
 | `wordSpacing` | `0.3` | The width of a space, in em. A monospace space is about `0.6`. |
 | `intro` | `true` | Left-to-right decode on first show. |
-| `speed` | `1` | How fast the scramble flickers and settles, from `0.25` to `2`. It also sets how fast slots and lines glide. |
+| `speed` | `1` | How fast the scramble flickers and settles. At least `0.25`; the demo slider goes to `2`. It also sets how fast slots and lines glide. |
 | `hoverRadius` | `2.6` | How far the pointer reaches, in character heights. |
 | `expand` | `true` | Each slot widens to fit its glyph. `false` keeps a strict grid. |
 | `base` | `'#8d8b93'` | Colour of plain text. |
@@ -595,13 +597,13 @@ The default stack already names 'Noto Sans Math', so it slots in after the monos
 
 ### Hong Kong type
 
-The demo shows Traditional Chinese in three styles seen all over Hong Kong. Pick one with the chips 路, 黑 and 宋 on the columns card, or in the font picker. Each is a self-hosted subset of 3 to 4 KB (see [docs/fonts](docs/fonts/README.md)):
+The demo shows Traditional Chinese in three styles seen all over Hong Kong. Pick one with the chips 路, 黑 and 宋 on the columns card, or in the font picker. Each is a self-hosted subset of 2.5 to 4 KB (see [docs/fonts](docs/fonts/README.md)):
 
 - **Road-sign style (路):** [Dela Gothic One](https://github.com/syakuzen/DelaGothic) by artakana, SIL OFL 1.1. It stands in for Prison Gothic (監獄體), the lettering that inmates of Stanley Prison cut by hand for road signs from the 1970s to 1997. Its digital revival by the Road Research Society (道路研究社) is a commercial font, and no openly licensed version exists, so the demo does not use that name.
 - **Heiti (黑體, 黑):** [Chiron Hei HK](https://github.com/chiron-fonts/chiron-hei-hk) at weight 900 by the Chiron Hei HK Project Authors, from Adobe's Source Han Sans, SIL OFL 1.1. A sans with even strokes, in Hong Kong character forms.
 - **Songti (宋體, 宋):** [Noto Serif HK](https://github.com/notofonts/noto-cjk) at weight 900 by Adobe, for Google's Noto, SIL OFL 1.1. The Ming style: thin horizontals, thick verticals and small triangular serifs, as on MTR station signs.
 
-The first view loads only the subsets. The full fonts are on the page too, as unicode-range slices of about 50 to 100 KB, cut in the order of Google Fonts' slices for Noto Sans HK, so that common characters share a few slices. The demo adds a face's slices only when the hero shows that face with Chinese characters that the subset does not hold. Then the browser downloads only the slices with characters on screen:
+The first view loads only the subsets. The full fonts are on the page too, as unicode-range slices of mostly 50 to 100 KB (at most about 120 KB), cut in the order of Google Fonts' slices for Noto Sans HK, so that common characters share a few slices. The demo adds a face's slices only when the hero shows that face with Chinese characters that the subset does not hold. Then the browser downloads only the slices with characters on screen:
 
 | Face | Slices | On disk | Demo text | A typed 17-character sentence |
 |---|---|---|---|---|
@@ -653,7 +655,7 @@ mount(element, {
 
 The first line is the rightmost column. The characters stay upright. A CJK slot keeps its full width when it swaps to a narrow symbol, so the columns do not shrink. The `cjk` table holds characters made of straight strokes and boxes: 一 → −, 二 → =, 三 → ≡, 十 → +, 口 → □, 田 → ⊞, 〇 → ∘ and a few more. A Hangul syllable swaps like its first consonant, so 아 and 오 can show ∘, and 마 can show □. Other characters swap to symbols. Put the anchor near the middle of its column: the column grows out from it. Set `lang` on the element (`zh-Hans`, `ja` or `ko`), so the browser picks the right font for Han characters.
 
-For the look of a sign, set the columns close together and use a heavy font. The demo uses `columnGap: 0.15` and Noto Serif HK, JP and KR at weight 900 (SIL OFL 1.1), whose bold Ming strokes are close to the characters on Hong Kong MTR station signs. For Chinese it also offers two other [Hong Kong styles](#hong-kong-type). A CJK font is large, so the demo serves a subset of each with only the characters of its text, 3 to 5 KB each (see [docs/fonts](docs/fonts/README.md)), and passes it as `fonts: [{ family, url }]`.
+For the look of a sign, set the columns close together and use a heavy font. The demo uses `columnGap: 0.15`, the three [Hong Kong faces](#hong-kong-type) for Chinese, and Noto Serif JP and KR at weight 900 (SIL OFL 1.1) for Japanese and Korean, whose bold Ming strokes are close to the characters on Hong Kong MTR station signs. A CJK font is large, so the demo serves a subset of each with only the characters of its text, 2.5 to 4.5 KB each (see [docs/fonts](docs/fonts/README.md)), and passes it as `fonts: [{ family, url }]`.
 
 You can add your own tables:
 
@@ -716,7 +718,7 @@ Hovering over 2,000 characters (25 lines of 80) for 5 seconds, with a synthetic 
 - *v0.4.0*: the same canvas renderer, with layouts, effects and `scripts`. This table uses the defaults, `'lines'` and `'breathe'`.
 - *v0.6.0*: what ships. It adds stacked effects, custom layouts and the hooks for your code (about 0.9 KB gzipped). With the defaults, the frame does the same work as in v0.4.0.
 
-The same hover test with each effect, in the `'lines'` layout:
+The same hover test with each effect, in the `'lines'` layout (v0.4.0, and the stacked row v0.6.0):
 
 | Effect | Main-thread time per frame | Browser CPU | Frames over 20 ms |
 |---|--:|--:|--:|
@@ -730,7 +732,7 @@ The same hover test with each effect, in the `'lines'` layout:
 
 The stacked row is from v0.6.0. In the same run, on the same machine, `'ripple'` alone took 3.22 ms and `'lens'` alone 3.91 ms. `node bench/run.mjs effects ripple lens ripple,lens` runs these three.
 
-To run the benchmark: `npm install && npm run build`, then `npm i -D playwright && npx playwright install chromium && node bench/run.mjs`. `node bench/run.mjs effects` runs the hover test once per effect. `node bench/plain.mjs` checks that the demo, and every layout with every effect, go back to plain text with `rest: 'plain'` and then stop.
+To run the benchmark: `npm install && npm run build`, then `npm install --no-save playwright && npx playwright install chromium && node bench/run.mjs`. `node bench/run.mjs effects` runs the hover test once per effect. `node bench/plain.mjs` checks that the demo, and every layout with every effect, go back to plain text with `rest: 'plain'` and then stop.
 
 ### Motion
 

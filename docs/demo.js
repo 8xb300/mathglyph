@@ -20,7 +20,7 @@ const MATH_FONT = { family: 'Noto Sans Math', url: './fonts/noto-sans-math-subse
 
 // Three Hong Kong faces for Chinese text, all OFL: the columns card and the font picker offer them.
 // Each file holds only the characters of the card text and the hero's Traditional Chinese text
-// (see fonts/README.md), so it is 3 to 4 KB. No openly licensed Prison Gothic (監獄體, the hand-cut
+// (see fonts/README.md), so it is 2.5 to 4 KB. No openly licensed Prison Gothic (監獄體, the hand-cut
 // road-sign lettering) exists, so Dela Gothic One, a heavy and blunt gothic, gives a road-sign look
 // under its own name.
 const HK_FONTS = {
@@ -29,7 +29,7 @@ const HK_FONTS = {
   sung: { family: 'Noto Serif HK Black', url: './fonts/noto-serif-hk-900-hk.d6d37bf6.woff2' },
 };
 const HK_NAMES = { road: 'road-sign style, Dela Gothic One', hei: 'Heiti 黑體, Chiron Hei HK', sung: 'Songti 宋體, Noto Serif HK' };
-// The full faces, as unicode-range slices of about 50 to 100 KB (see fonts/README.md). A face's
+// The full faces, as unicode-range slices of mostly 50 to 100 KB (see fonts/README.md). A face's
 // stylesheet is added only when the hero shows the face with Chinese characters that its subset
 // does not hold. Then the browser downloads only the slices that hold characters on screen.
 const HK_FULL = {
@@ -736,7 +736,9 @@ function showConfig() {
     if (JSON.stringify(state[key]) !== JSON.stringify(BASE[key])) changed[key] = state[key];
   }
   if (changed.lookalikes) changed.lookalikes = '__TABLE__';
-  if (changed.fonts) changed.fonts = changed.fonts.map((f) => (f.url ? { ...f, url: new URL(f.url, location.href).href } : f));
+  // The full Hong Kong faces are families of this page's slice stylesheets, which another page lacks.
+  const pageOnly = Object.values(HK_FULL).map((full) => full.family);
+  if (changed.fonts) changed.fonts = changed.fonts.filter((f) => !pageOnly.includes(f)).map((f) => (f.url ? { ...f, url: new URL(f.url, location.href).href } : f));
   // The layout and effect modules the config needs: they are imported and registered.
   const modules = ['layout', 'effect']
     .flatMap((kind) => (Array.isArray(state[kind]) ? state[kind] : [state[kind]]).map((value) => [kind, itemName(value)]))

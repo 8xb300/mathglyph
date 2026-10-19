@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>mathglyph · a text effect with a math accent</title>
-  <meta name="description" content="mathglyph is a small JavaScript text effect: monospace text where letters swap to math alphabets, Greek look-alikes and operators, then settle. Live demo with four layouts, seven hover effects and every option.">
+  <meta name="description" content="mathglyph is a small JavaScript text effect: monospace text where letters swap to math alphabets, Greek look-alikes and operators, then settle. Live demo with four layouts, six hover effects and every option.">
   <meta name="theme-color" content="#09090b">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2309090b'/%3E%3Cpath d='M9 7l7 18 7-18M11.7 14h8.6' fill='none' stroke='%23a98bff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="./demo.css">
@@ -66,7 +66,7 @@
         <h2 id="options-title">Options</h2>
         <div class="actions">
           <button type="button" id="open-all">Open all</button>
-          <button type="button" id="reset">Reset to defaults</button>
+          <button type="button" id="reset">Reset to the first view</button>
         </div>
       </div>
 
@@ -126,7 +126,7 @@
               </div>
               <div class="row"><button type="submit">Use font</button></div>
             </form>
-            <p class="note" id="font-d">The monospace fonts load from jsDelivr (Fontsource files). The three Hong Kong fonts for Chinese text are small self-hosted subsets. The library itself loads no fonts by default. This page also loads a self-hosted subset of Noto Sans Math for the math glyphs.</p>
+            <p class="note" id="font-d">The monospace fonts load from jsDelivr (Fontsource files). The three Hong Kong fonts for Chinese text are small self-hosted subsets, plus the full fonts in slices, loaded only when the text needs them. The library itself loads no fonts by default. This page also loads a self-hosted subset of Noto Sans Math for the math glyphs.</p>
           </div>
         </details>
         <details class="sec" id="sec-glyphs">

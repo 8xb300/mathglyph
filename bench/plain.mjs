@@ -197,8 +197,9 @@ async function demoChecks() {
   await page.close();
 }
 
-// The demo's hero is as tall for every layout and every language of the columns card, at a phone's
-// width and a desktop's, so that the page under it does not move when they change.
+// The demo's hero is as tall for every layout, every language of the columns card, and every
+// language of the language picker in every layout, at a phone's width and a desktop's, so that the
+// page under it does not move when they change.
 async function heroChecks() {
   for (const width of [390, 1400]) {
     const page = await browser.newPage({ viewport: { width, height: 900 } });
@@ -292,7 +293,7 @@ async function matrix() {
   // The gallery's cards: short Chinese columns with the CJK table, and a short ring, both anchored.
   for (const effect of EFFECTS) {
     if (LAYOUTS.includes('columns')) {
-      const options = { lines: ['一字一变量', '一句一证明', '符号*呼吸*着', '又归于平淡'], anchor: '呼吸', lookalikes: cjk, maxSize: 34 };
+      const options = { lines: ['字是變量', '句是證明', '*呼吸*'], anchor: '呼吸', lookalikes: cjk, maxSize: 50 };
       await combo(context, 'columns', effect, false, JSON.stringify(options), 'the CJK card');
     }
     if (LAYOUTS.includes('ring')) {
