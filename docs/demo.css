@@ -322,3 +322,18 @@ pre {
   /* 16px keeps iOS from zooming in when a field gets focus. */
   select, input[type=text], input[type=url], textarea { font-size: 16px; }
 }
+
+/* ---- showreel (?showreel): the hero alone, full-bleed, with no cursor ---- */
+
+.reeling { overflow: hidden; }
+.reel {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background: var(--bg);
+  cursor: none;
+}
+.reel-stage { width: min(90vw, 160vh); margin: 0 auto; }

@@ -859,3 +859,18 @@ $('reset').addEventListener('click', () => {
   showSettings('effect');
   showSummaries();
 });
+
+// ---- showreel: ?showreel plays the layouts, effects and languages full-bleed (see showreel.js) ----
+
+const params = new URLSearchParams(location.search);
+if (params.has('showreel') && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  import('./showreel.js').then(({ showreel }) => showreel({
+    LANGUAGES, GALLERY, TABLES, MATH_FONT,
+    seed: Number(params.get('seed')) || 1,
+    record: params.has('record'),
+    onStop: () => {
+      history.replaceState(null, '', location.pathname + location.hash);
+      fx.replay();
+    },
+  }));
+}
