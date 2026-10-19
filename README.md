@@ -6,18 +6,33 @@ A small text effect: monospace lines where some letters turn into math glyphs (�
 
 ![mathglyph preview](docs/preview.webp)
 
-<!-- OWNER DEMO VIDEO: on github.com, edit this README and drag the screen recording (.mp4 or .mov) onto this line. GitHub uploads it and shows a player. -->
-
 Give it a few lines of text. It shows them centred, in monospace, with a math accent:
 
-- At rest, some letters swap to math alphabets (𝕋 𝒢 𝔣 𝑛), Greek look-alikes (σ χ φ) and operators (⊨ ⊗ ∈ ↑). The math alphabets come from Unicode's Mathematical Alphanumeric block. That block has holes for letters Unicode encoded earlier, like ℝ ℂ ℍ ℎ, and mathglyph fills them with the right characters.
-- Some glyphs get a colour from the palette, and some coloured glyphs get a box. The default box looks like a bounding box from a vision model: a thin 1px rectangle in the glyph's colour. Most boxes also get a tiny monospace label under them, such as `Δx=30px`: the real width change of that slot, in px, against a plain monospace slot. `boxStyle: 'soft'` draws a rounded box with a faint fill instead.
-- Each slot widens to fit the glyph it shows, so lines breathe. `expand: false` keeps a strict grid.
+- At rest, some letters swap to math glyphs. Some glyphs get a colour from the palette, and some coloured glyphs get a box.
 - The pointer scrambles the characters near it, then they settle. There is also a left-to-right decode intro (on by default) and a slow idle reshuffle (off by default).
 - Words in `*stars*` are highlighted: white, and readable at rest.
-- Whole words with a symbol meaning can swap: and → ∧, therefore → ∴, every → ∀.
-- Symbols come from 21 groups by field, from calculus to category theory. When slots can widen, short tokens like ∫₀, ℏω, ⊗² and && join in.
-- About 9 KB minified and gzipped, no dependencies, and no work at all while nothing moves. See [Performance](#performance).
+
+## How it's different
+
+A typical text-scramble effect cycles random characters in a fixed grid. mathglyph differs in these ways:
+
+- **Real math, not noise.** Letters swap to Unicode's math alphabets (𝔸 𝒢 𝔣 𝑛, with the older letters that fill the block's holes, like ℝ ℂ ℍ ℎ) and to notation from 21 fields, from logic and calculus to category theory.
+- **Slots that fit the glyph.** Each slot widens to fit the glyph it shows, so wide symbols and short tokens (∫₀, ℏω, ⊗², &&) fit and the lines breathe. `expand: false` keeps a strict grid.
+- **Readable at rest.** Look-alike swaps (∃ for E, ∪ for U, ∅ for O) and math versions of the same letter keep words legible.
+- **Whole-word swaps.** Words with a symbol meaning turn into it: and → ∧, therefore → ∴, every → ∀. You can add your own words, in any language.
+- **Bounding-box labels.** Boxes look like vision-model detections: a thin 1px rectangle with a tiny label that shows the slot's real width change, such as `Δx=30px`. `boxStyle: 'soft'` draws a rounded box instead.
+- **Any script, any font.** Text is split into grapheme clusters, widths are measured per glyph, and you can load your own fonts.
+- **No work when idle.** No timers or frames run while nothing moves, while the text is off screen, or while the tab is hidden.
+- **About 9 KB** minified and gzipped, with no dependencies. See [Performance](#performance).
+
+## Use cases
+
+- Hero headlines and landing pages.
+- Docs and blog titles about math, CS or science.
+- 404 pages and loading screens.
+- Launch and announcement pages.
+- Talk slides and portfolio headers.
+- Sites for AI and research tools.
 
 ## Quick start
 
@@ -43,9 +58,25 @@ With a plain script tag, the same exports are on the global `MathGlyph`:
 
 If you copy `dist/`, import `mathglyph.min.js` from wherever you put it. Types are in `dist/mathglyph.d.ts`.
 
+### Configure in code
+
+The sliders are only on the demo page. The library ships with no UI: you set options at mount and change them live from your own code.
+
+```js
+const fx = mount(document.getElementById('hero'), {
+  lines: ['every *function* has a story', 'and every story has an end'],
+  palette: 'ember',
+  symbols: ['logic', 'calculus'],
+});
+
+fx.update({ palette: 'ice', substitute: 0.5 });  // change any option live
+fx.replay();                                     // run the decode intro again
+fx.reroll();                                     // pick new glyphs at rest
+```
+
 ### Without JavaScript
 
-Put the plain text in the element, as in the example above. `mount` replaces it with the effect, and `destroy()` puts it back. Without JavaScript, or before the script loads, visitors and crawlers see the plain text.
+Put the plain text in the element, as in the first Quick start example. `mount` replaces it with the effect, and `destroy()` puts it back. Without JavaScript, or before the script loads, visitors and crawlers see the plain text.
 
 ## Options
 
