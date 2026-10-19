@@ -63,7 +63,7 @@ The package has no dependencies and ships its own types. Without a bundler, load
 ```html
 <h1 id="hero">Every proof starts with a good guess</h1>
 <script type="module">
-  import { mount } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/mathglyph.min.js';
+  import { mount } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/mathglyph.min.js';
   const lines = ['Every proof starts', 'with a *good* guess'];  // *stars* highlight a word
   mount(document.getElementById('hero'), { lines, palette: 'ice' });
 </script>
@@ -72,7 +72,7 @@ The package has no dependencies and ships its own types. Without a bundler, load
 With a plain script tag, the same exports are on the global `MathGlyph`:
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/mathglyph.iife.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/mathglyph.iife.min.js"></script>
 <script>
   MathGlyph.mount(document.getElementById('hero'), { lines: ['Every proof starts', 'with a *good* guess'] });
 </script>
@@ -147,8 +147,8 @@ Put the plain text in the element, as in the first Quick start example. `mount` 
 `'breathe'` is built in. The others are [modules](#modules): import them and pass them to `register` first. v0.5.0 removed `'wave'`: a page that still asks for it gets `'breathe'` and one console warning. Give settings with the name:
 
 ```js
-import { mount, register } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/mathglyph.min.js';
-import { ripple } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/effects/ripple.min.js';
+import { mount, register } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/mathglyph.min.js';
+import { ripple } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/effects/ripple.min.js';
 
 register(ripple);
 const fx = mount(element, { effect: 'ripple' });               // the default settings
@@ -171,7 +171,7 @@ Distances are in em: 1 em is the font size. Each effect's `speed` is multiplied 
 Give `effect` a list, and the effects run together, in the order of the list:
 
 ```js
-import { lens } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/effects/lens.min.js';
+import { lens } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/effects/lens.min.js';
 
 register(ripple, lens);
 mount(element, { effect: ['ripple', { name: 'lens', strength: 0.5 }] });
@@ -359,9 +359,9 @@ The default, `null`, is Latin only. A letter with no look-alike in the picked sc
 The core, `mathglyph.min.js`, has the `'lines'` layout and the `'breathe'` effect. Each other layout and effect is a module of its own, which exports one object with the module's name. Import the ones you use, and pass them to `register` before `mount`:
 
 ```js
-import { mount, register } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/mathglyph.min.js';
-import { ring } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/layouts/ring.min.js';
-import { firework } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/effects/firework.min.js';
+import { mount, register } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/mathglyph.min.js';
+import { ring } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/layouts/ring.min.js';
+import { firework } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/effects/firework.min.js';
 
 register(ring, firework);
 mount(document.getElementById('hero'), { layout: 'ring', effect: 'firework' });
@@ -370,7 +370,7 @@ mount(document.getElementById('hero'), { layout: 'ring', effect: 'firework' });
 With a plain script tag, load the all-in-one build. It has every layout and effect registered, and the Greek, Cyrillic and CJK tables:
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/mathglyph.all.iife.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/mathglyph.all.iife.min.js"></script>
 <script>
   MathGlyph.mount(document.getElementById('hero'), { layout: 'ring', effect: 'firework' });
 </script>
@@ -385,18 +385,18 @@ Gzipped: zlib level 9, as `npm run build` prints.
 <!-- numbers: sizes -->
 | File | What it holds | Minified | Gzipped |
 |---|---|--:|--:|
-| [`mathglyph.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/mathglyph.min.js) | The core, as an ES module: `mount`, `register`, the tables, `'lines'` and `'breathe'`. | 30,814 B | 14,145 B |
-| [`mathglyph.iife.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/mathglyph.iife.min.js) | The core for a script tag, on the global `MathGlyph`, with the Greek, Cyrillic and CJK tables. | 32,999 B | 15,537 B |
-| [`mathglyph.all.iife.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/mathglyph.all.iife.min.js) | The script-tag build with every layout and effect registered. | 43,282 B | 19,970 B |
-| [`languages.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/languages.min.js) | The Greek, Cyrillic and CJK look-alike tables. | 1,762 B | 1,086 B |
-| [`layouts/columns.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/layouts/columns.min.js) | The `'columns'` layout. | 1,305 B | 700 B |
-| [`layouts/grid.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/layouts/grid.min.js) | The `'grid'` layout. | 1,920 B | 999 B |
-| [`layouts/ring.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/layouts/ring.min.js) | The `'ring'` layout. | 1,027 B | 544 B |
-| [`effects/ripple.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/effects/ripple.min.js) | The `'ripple'` effect. | 1,116 B | 714 B |
-| [`effects/firework.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/effects/firework.min.js) | The `'firework'` effect. | 1,378 B | 826 B |
-| [`effects/lens.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/effects/lens.min.js) | The `'lens'` effect. | 1,040 B | 648 B |
-| [`effects/cascade.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/effects/cascade.min.js) | The `'cascade'` effect. | 995 B | 611 B |
-| [`effects/shatter.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/effects/shatter.min.js) | The `'shatter'` effect. | 1,951 B | 1,170 B |
+| [`mathglyph.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/mathglyph.min.js) | The core, as an ES module: `mount`, `register`, the tables, `'lines'` and `'breathe'`. | 30,814 B | 14,145 B |
+| [`mathglyph.iife.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/mathglyph.iife.min.js) | The core for a script tag, on the global `MathGlyph`, with the Greek, Cyrillic and CJK tables. | 32,999 B | 15,537 B |
+| [`mathglyph.all.iife.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/mathglyph.all.iife.min.js) | The script-tag build with every layout and effect registered. | 43,282 B | 19,970 B |
+| [`languages.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/languages.min.js) | The Greek, Cyrillic and CJK look-alike tables. | 1,762 B | 1,086 B |
+| [`layouts/columns.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/layouts/columns.min.js) | The `'columns'` layout. | 1,305 B | 700 B |
+| [`layouts/grid.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/layouts/grid.min.js) | The `'grid'` layout. | 1,920 B | 999 B |
+| [`layouts/ring.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/layouts/ring.min.js) | The `'ring'` layout. | 1,027 B | 544 B |
+| [`effects/ripple.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/effects/ripple.min.js) | The `'ripple'` effect. | 1,116 B | 714 B |
+| [`effects/firework.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/effects/firework.min.js) | The `'firework'` effect. | 1,378 B | 826 B |
+| [`effects/lens.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/effects/lens.min.js) | The `'lens'` effect. | 1,040 B | 648 B |
+| [`effects/cascade.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/effects/cascade.min.js) | The `'cascade'` effect. | 995 B | 611 B |
+| [`effects/shatter.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/effects/shatter.min.js) | The `'shatter'` effect. | 1,951 B | 1,170 B |
 
 ### Package exports
 
@@ -538,7 +538,7 @@ The module also exports its built-in tables:
 Use them to build on the defaults:
 
 ```js
-import { mount, sets, palettes } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/mathglyph.min.js';
+import { mount, sets, palettes } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/mathglyph.min.js';
 
 mount(element, {
   symbols: Object.keys(sets).filter((name) => name !== 'greek'),  // every group but Greek
@@ -636,8 +636,8 @@ Lines are split into grapheme clusters with `Intl.Segmenter`, so any script work
 The built-in look-alike table covers Latin. Greek, Cyrillic and CJK tables ship as a separate module, `dist/languages.min.js` (about 1 KB gzipped), so pages that don't need them don't load them. Plug them in with `lookalikes`:
 
 ```js
-import { mount } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/mathglyph.min.js';
-import { greek, cyrillic } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/languages.min.js';
+import { mount } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/mathglyph.min.js';
+import { greek, cyrillic } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/languages.min.js';
 
 mount(element, {
   lines: ['каждый знак — *переменная*'],
@@ -656,9 +656,9 @@ Greek letters also get math-alphabet Greek (𝛂 𝜷 𝝅), with or without the
 Chinese, Japanese and Korean are sometimes written in vertical columns, and the `'columns'` layout is made for them. Keep the text short, give each column a few characters, and let `fit` choose a large font:
 
 ```js
-import { mount, register } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/mathglyph.min.js';
-import { columns } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/layouts/columns.min.js';
-import { cjk } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/languages.min.js';
+import { mount, register } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/mathglyph.min.js';
+import { columns } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/layouts/columns.min.js';
+import { cjk } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.2/dist/languages.min.js';
 
 register(columns);
 mount(element, {
