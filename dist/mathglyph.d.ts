@@ -62,7 +62,6 @@ export interface Options {
   fonts?: FontSource[];
   fit?: boolean;
   maxSize?: number;
-  renderer?: 'canvas' | 'dom';
 }
 
 export interface MathGlyph {

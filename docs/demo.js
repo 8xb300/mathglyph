@@ -88,7 +88,7 @@ const LANGUAGES = {
 const SHOWN = [
   'lines', 'fonts', 'font', 'wordMap', 'lookalikes', 'palette', 'substitute', 'color', 'box', 'boxStyle', 'labels',
   'symbols', 'tokens', 'symbolMix', 'legible', 'words', 'motion', 'intro', 'speed', 'hoverRadius',
-  'expand', 'fit', 'maxSize', 'renderer',
+  'expand', 'fit', 'maxSize',
 ];
 
 const $ = (id) => document.getElementById(id);

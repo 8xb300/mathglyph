@@ -17,7 +17,7 @@ Give it a few lines of text. It shows them centred, in monospace, with a math ac
 - Words in `*stars*` are highlighted: white, and readable at rest.
 - Whole words with a symbol meaning can swap: and → ∧, therefore → ∴, every → ∀.
 - Symbols come from 21 groups by field, from calculus to category theory. When slots can widen, short tokens like ∫₀, ℏω, ⊗² and && join in.
-- No dependencies.
+- About 9 KB minified and gzipped, no dependencies, and no work at all while nothing moves. See [Performance](#performance).
 
 ## Quick start
 
@@ -66,7 +66,7 @@ Every option has a default. Pass any of them to `mount`, or change them later wi
 | `tokens` | `true` | Also swap in short notation like ∫₀, ℏω, ⊗², &&. Only with `expand`. |
 | `symbolMix` | `0.15` | Share of swaps that use the symbol groups instead of a math-alphabet or Greek version of the same letter. |
 | `legible` | `0.6` | How often a swapped letter uses a symbol that looks like it: ∃ for E, ∪ for U, ∅ for O. |
-| `lookalikes` | `null` | Extra look-alikes, `{ char: 'glyphs' }`, merged over the built-in tables. |
+| `lookalikes` | `null` | Extra look-alikes, `{ char: 'glyphs' }`, merged over the built-in Latin table. Also how you plug in the Greek and Cyrillic tables. See [Languages](#languages). |
 | `words` | `0.7` | How often words with a symbol meaning swap whole. Needs `expand`. |
 | `wordMap` | `null` | Extra word → symbol pairs, merged over the English map. |
 | `motion` | `'hover'` | `'hover'`: still until the pointer moves over it. `'always'`: adds a slow reshuffle. `'still'`: no animation. |
@@ -80,7 +80,6 @@ Every option has a default. Pass any of them to `mount`, or change them later wi
 | `fonts` | `[]` | Fonts to load. See [Fonts](#fonts). |
 | `fit` | `true` | Scale the font so the text fits the container width. |
 | `maxSize` | `44` | Largest font size in px for `fit`. |
-| `renderer` | `'canvas'` <!-- RENDERER-DEFAULT --> | How glyphs are drawn: `'canvas'` or `'dom'`. |
 
 ### Labels
 
@@ -157,7 +156,7 @@ The module also exports its built-in tables:
 | `palettes` | The built-in palettes by name, each an array of CSS colours. |
 | `sets` | The 21 symbol groups: `{ name: { label, symbols, tokens } }`. |
 | `words` | The English word → symbol map. |
-| `lookalike` | The look-alike table: character → glyphs. |
+| `lookalike` | The built-in Latin look-alike table: character → glyphs. |
 | `defaults` | The default options. |
 
 Use them to build on the defaults:
@@ -201,7 +200,21 @@ The default stack already names 'Noto Sans Math', so it slots in after the monos
 
 Lines are split into grapheme clusters with `Intl.Segmenter`, so any script works, and so do emoji. Widths are measured, so wide characters (CJK, full-width forms) get wide slots.
 
-Built-in look-alike tables cover Latin, Greek and Cyrillic. Greek letters also get math-alphabet Greek (𝛂 𝜷 𝝅). Letters from other scripts swap to symbols from the chosen groups.
+The built-in look-alike table covers Latin. Greek and Cyrillic tables ship as a separate module, `dist/languages.min.js` (under 1 KB gzipped), so pages that don't need them don't load them. Plug them in with `lookalikes`:
+
+```js
+import { mount } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.1.0/dist/mathglyph.min.js';
+import { greek, cyrillic } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.1.0/dist/languages.min.js';
+
+mount(element, {
+  lines: ['каждый знак — *переменная*'],
+  lookalikes: { ...greek, ...cyrillic },
+});
+```
+
+The script-tag build already includes both, as `MathGlyph.greek` and `MathGlyph.cyrillic`.
+
+Greek letters also get math-alphabet Greek (𝛂 𝜷 𝝅), with or without the table. Accented letters (é, ά, й) swap like their base letter. Letters from other scripts swap to symbols from the chosen groups.
 
 You can add your own tables:
 
@@ -241,10 +254,25 @@ What does not work:
 
 - **No work at rest.** When nothing animates, no timers run. The effect also pauses when it is off screen (IntersectionObserver) and when the tab is hidden.
 - **No layout reads in the animation loop.** Glyph widths and slot geometry are cached, and updated only on resize and when a font loads.
-- **One `requestAnimationFrame` loop** drives the animation.
-- **Only changed lines are redrawn.**
+- **One `requestAnimationFrame` loop** drives the animation. It stops as soon as the last glyph settles.
+- **One canvas, and only changed lines are redrawn.** Screen readers get a visually hidden copy of the text (see [Accessibility](#accessibility)).
 
-<!-- BENCH-TABLE -->
+### Numbers
+
+Hovering over 2,000 characters (25 lines of 80) for 5 seconds, with a synthetic pointer that crosses every line. Median of 3 runs on Linux x86_64, headless Chromium 156, software rendering. `bench/run.mjs` measures it.
+
+| | First version | DOM renderer | Canvas (ships) |
+|---|---:|---:|---:|
+| Main-thread time per frame while hovering | 8.1 ms | 5.7 ms | **2.6 ms** |
+| Browser CPU while hovering (all processes) | 88% | 63% | **25%** |
+| Frames over 20 ms | 0 | 0 | 0 |
+| Timer and frame wakeups in 10 s at rest | 167 | 0 | **0** |
+| Wakeups in 5 s off screen, `motion: 'always'` | 83 | 0 | **0** |
+| Size, minified and gzipped | 6,018 B | | 8,962 B |
+
+- *First version*: the original script, one `<span>` per character, CSS width transitions, a 60 ms `setInterval` that never stops, and `getBoundingClientRect` on every character for each pointer move.
+- *DOM renderer*: this engine drawing into absolutely positioned spans moved with transforms. It ran 2.2× slower than canvas and added 0.8 KB, so it was dropped. It lives in commit `1f75b33` if you want to compare.
+- *Canvas*: what ships. About 3 KB of its 9 KB are the symbol tables. The Greek and Cyrillic tables are a separate 0.9 KB module. It does more than the first version: fonts, languages, labels, pausing.
 
 To run the benchmark: `npm install && npm run build`, then `npm i -D playwright && npx playwright install chromium && node bench/run.mjs`.
 

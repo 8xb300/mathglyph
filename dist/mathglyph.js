@@ -293,8 +293,7 @@ var DEFAULTS = {
   font: MONO_STACK + ", 'Noto Sans Math', 'STIX Two Math', 'Cambria Math', monospace",
   fonts: [],
   fit: true,
-  maxSize: 44,
-  renderer: "canvas"
+  maxSize: 44
 };
 var BOX_PAD = 0.16;
 var SPACE_PAD = 0.34;
@@ -303,7 +302,6 @@ var CELL_H = 1.24;
 var LABEL_EM = 0.26;
 var TICK = 60;
 var EASE_MS = 260;
-var CSS = ".mg-r{position:absolute;left:0;top:0;white-space:pre}.mg-c{position:absolute;left:0;top:var(--mg-t);height:var(--mg-h);line-height:var(--mg-lh);box-sizing:border-box;border:1px solid transparent;text-align:center;font-variant-ligatures:none}.mg-d{box-shadow:inset 0 0 0 1px currentColor;background:color-mix(in srgb,currentColor 6%,transparent)}.mg-s{border-radius:.16em;background:color-mix(in srgb,currentColor 16%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,currentColor 78%,transparent)}.mg-c[data-l]::after{content:attr(data-l);position:absolute;left:0;top:100%;margin-top:1px;font:var(--mg-lf);line-height:1;opacity:.9}";
 var segmenter = typeof Intl !== "undefined" && Intl.Segmenter ? new Intl.Segmenter(void 0, { granularity: "grapheme" }) : null;
 function graphemes(s) {
   return segmenter ? Array.from(segmenter.segment(s), function(x) {
@@ -353,13 +351,6 @@ var faces = {};
 function contentWidth(el) {
   var cs = (el.ownerDocument.defaultView || window).getComputedStyle(el);
   return el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
-}
-function injectCSS() {
-  if (document.getElementById("mg-style")) return;
-  var s = document.createElement("style");
-  s.id = "mg-style";
-  s.textContent = CSS;
-  document.head.appendChild(s);
 }
 function mount(root, options) {
   var o = Object.assign({}, DEFAULTS, options || {});
@@ -599,7 +590,6 @@ function mount(root, options) {
           t0: 0,
           x: 0,
           moving: false,
-          el: null,
           prev: null
         };
         at[offset] = col;
@@ -627,7 +617,6 @@ function mount(root, options) {
       lines.push(L);
     });
     sr.textContent = plain.join("\n");
-    renderer.build();
   }
   function fontStack() {
     var front = [];
@@ -847,91 +836,7 @@ function mount(root, options) {
         }
       });
     }
-    return { el: cv, build: function() {
-    }, resize, draw };
-  }
-  function domRenderer() {
-    var el = document.createElement("div");
-    var rows = [];
-    el.setAttribute("aria-hidden", "true");
-    el.style.cssText = "position:relative;overflow-x:clip;touch-action:pan-y";
-    injectCSS();
-    function build2() {
-      el.textContent = "";
-      rows = lines.map(function(L) {
-        var row = document.createElement("div");
-        row.className = "mg-r";
-        L.cells.forEach(function(c) {
-          c.el = document.createElement("span");
-          c.el.className = "mg-c";
-          c.last = {};
-          row.appendChild(c.el);
-        });
-        el.appendChild(row);
-        return row;
-      });
-    }
-    function resize() {
-      el.style.height = H + "px";
-      el.style.font = fontPx;
-      el.style.setProperty("--mg-t", (lineH - boxH) / 2 + "px");
-      el.style.setProperty("--mg-h", boxH + "px");
-      el.style.setProperty("--mg-lh", boxH - 2 + "px");
-      el.style.setProperty("--mg-lf", labelPx);
-      rows.forEach(function(row, i) {
-        row.style.top = lines[i].top + "px";
-        row.last = null;
-      });
-    }
-    function draw(list) {
-      list.forEach(function(k) {
-        var L = lines[k], row = rows[k];
-        if (row.last !== L.left) {
-          row.last = L.left;
-          row.style.transform = "translateX(" + L.left + "px)";
-        }
-        L.cells.forEach(function(c) {
-          var s = c.el, p = c.last;
-          var cls = !c.box ? "mg-c" : o.boxStyle === "soft" ? "mg-c mg-s" : "mg-c mg-d";
-          var col = colorOf(c), a = alphaOf(c), label = showsLabel(c) ? labelText(c) : "";
-          if (p.g !== c.g) {
-            p.g = c.g;
-            s.textContent = c.g;
-          }
-          if (p.x !== c.x) {
-            p.x = c.x;
-            s.style.transform = "translateX(" + c.x + "px)";
-          }
-          if (p.w !== c.w) {
-            p.w = c.w;
-            s.style.width = c.w + "px";
-          }
-          if (p.col !== col) {
-            p.col = col;
-            s.style.color = col;
-          }
-          if (p.cls !== cls) {
-            p.cls = cls;
-            s.className = cls;
-          }
-          if (p.a !== a) {
-            p.a = a;
-            s.style.opacity = a === 1 ? "" : a;
-          }
-          if (p.label !== label) {
-            p.label = label;
-            if (label) s.setAttribute("data-l", label);
-            else s.removeAttribute("data-l");
-          }
-        });
-      });
-    }
-    return { el, build: build2, resize, draw };
-  }
-  function makeRenderer() {
-    if (renderer) renderer.el.remove();
-    renderer = o.renderer === "dom" ? domRenderer() : canvasRenderer();
-    root.insertBefore(renderer.el, sr);
+    return { el: cv, resize, draw };
   }
   function flush() {
     if (!dirtyAny) return;
@@ -1116,14 +1021,11 @@ function mount(root, options) {
     var linesChanged = next.lines && JSON.stringify(next.lines) !== JSON.stringify(o.lines);
     var rebuild = linesChanged || "wordMap" in next;
     var refont = "font" in next && next.font !== o.font || "fonts" in next;
-    var swap = next.renderer && next.renderer !== o.renderer;
     Object.assign(o, next);
     tables();
     if (refont) loadFonts();
-    if (swap) makeRenderer();
     if (rebuild) build();
-    else if (swap) renderer.build();
-    if (rebuild || refont || swap) measure();
+    if (rebuild || refont) measure();
     cells.forEach(function(c) {
       c.prev = null;
     });
@@ -1153,7 +1055,8 @@ function mount(root, options) {
     });
   }
   tables();
-  makeRenderer();
+  renderer = canvasRenderer();
+  root.insertBefore(renderer.el, sr);
   build();
   loadFonts();
   measure();
