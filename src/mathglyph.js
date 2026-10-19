@@ -5,7 +5,8 @@
   (⊨ ⊗ ∈ ↑), some get colored, and some get little outlined boxes.
   Each character's slot grows to fit the glyph it shows, so lines breathe wider
   as wide symbols swap in. Moving the pointer over the text scrambles the
-  characters near it.
+  characters near it. Slot widths move on critically damped springs, so they never
+  jump or turn back when a glyph changes mid-motion, and lines centre on them.
   With rest: 'plain' the text is plain until the pointer touches it, and goes
   back to plain a few seconds after the pointer leaves.
 
@@ -144,6 +145,9 @@ var DEFAULTS = {
   motion: 'hover',
   rest: 'glyphs',
   revert: 0,
+  anchor: null,
+  tracking: -0.02,
+  wordSpacing: 0.45,
   intro: true,
   speed: 1,
   hoverRadius: 2.6,
@@ -162,8 +166,11 @@ var LINE_H = 1.5;      // line height, em
 var CELL_H = 1.24;     // box height, em
 var LABEL_EM = 0.26;   // label font size, em
 var TICK = 60;         // ms between scramble steps
-var EASE_MS = 260;     // slot width transition, ms
-var REVERT_EASE_MS = 520;  // slot width transition when rest: 'plain' goes back to plain, ms
+// Springs, in rad/s at speed 1. A critically damped spring reaches 90% of a step in 3.9 / stiffness s.
+var SPRING = 20;          // slot widths
+var SETTLE_SPRING = 13;   // slot widths going back to plain (rest: 'plain')
+var PEAK_MS = 350;   // a scrambling slot keeps its widest recent width, relaxing with this time constant
+var FADE_MS = 80;    // crossfade from the old glyph to the new one
 var REVERT_WAVE_MS = 700;  // spread of the staggered wave back to plain, ms
 
 var segmenter = typeof Intl !== 'undefined' && Intl.Segmenter
@@ -191,6 +198,16 @@ function greekVariant(ch) {
 }
 
 function isLatin(ch) { return /^[A-Za-z]$/.test(ch); }
+
+// Where `word` first appears in `str` as a whole word, else where it first appears at all.
+var LETTER = /[\p{L}\p{M}\p{N}]/u;
+function wordAt(str, word) {
+  var first = str.indexOf(word);
+  for (var k = first; k >= 0; k = str.indexOf(word, k + 1)) {
+    if (!LETTER.test(str.charAt(k - 1)) && !LETTER.test(str.charAt(k + word.length))) return k;
+  }
+  return first;
+}
 
 function parseLine(line) {
   var out = [], hl = false;
@@ -226,7 +243,7 @@ export function mount(root, options) {
   var widths = {}, stack = '', monoEm = 0.6, ascEm = 0.8, descEm = 0.2;
   var W = contentWidth(root), H = 0, dpr = 1, fs = 16, lineH = 24, boxH = 20, monoPx = 9.6;
   var fontPx = '', labelPx = '';
-  var decoding = false, decodeStart = 0, idleAcc = 0, lastTick = 0;
+  var decoding = false, decodeStart = 0, idleAcc = 0, lastTick = 0, lastFrame = 0;
   var reverting = [], revertStart = 0, revertTimer = 0;
   var raf = 0, dead = false, onScreen = true, needMeasure = false, needLayout = false;
   var pointer = null, pointerMoved = false, rect = null;
@@ -323,20 +340,33 @@ export function mount(root, options) {
     return w;
   }
 
+  // The plain width of a character: a space is wordSpacing wide, every other slot gets tracking.
+  function plainWidth(ch, grid) {
+    if (ch === ' ') return o.wordSpacing;
+    return (grid ? grid * monoEm : Math.max(monoEm, glyphW(ch))) + o.tracking;
+  }
+
   function slotWidth(c) {
-    if (!o.expand) return c.grid * monoPx;
+    if (!o.expand) return plainWidth(c.ch, c.grid) * fs;
     if (c.gone) return 0;
-    return (Math.max(monoEm, glyphW(c.g)) + (c.box ? BOX_PAD : 0) + (c.pad ? SPACE_PAD : 0)) * fs;
+    if (c.g === ' ') return o.wordSpacing * fs;
+    return (Math.max(monoEm, glyphW(c.g)) + o.tracking + (c.box ? BOX_PAD : 0) + (c.pad ? SPACE_PAD : 0)) * fs;
   }
 
   function retarget(c) {
     var tw = slotWidth(c);
     if (tw === c.tw) return;
     c.tw = tw;
-    if (!animated()) { c.w = tw; return; }
+    if (!animated()) { c.w = c.peak = tw; c.v = 0; return; }
     c.w0 = c.w;
-    c.t0 = performance.now();
-    c.ease = c.reverting ? REVERT_EASE_MS : EASE_MS;
+    // A scrambling slot widens at once for a wider glyph, and narrows only slowly (see stepWidths).
+    if (!c.mix || tw > c.peak) c.peak = tw;
+    // Going back to plain, and word letters that fold away or come back, move more softly.
+    c.stiff = (c.reverting || c.gone || c.w0 < 0.5 ? SETTLE_SPRING : SPRING) * Math.max(o.speed, 0.25);
+    move(c);
+  }
+
+  function move(c) {
     if (!c.moving) { c.moving = true; moving.push(c); }
   }
 
@@ -344,7 +374,14 @@ export function mount(root, options) {
 
   // ---- choosing what a character shows ----
   function roll(c, scramble) {
+    var s = choose(c, scramble);
+    s.mix = scramble;
+    return s;
+  }
+
+  function choose(c, scramble) {
     var pal = palette();
+    if (c.anchor) return { g: c.ch, col: null, box: false };
     if (c.ch === ' ') {
       var spaceRate = (scramble ? 0.2 : o.substitute * 0.12) * (1 - o.legible * 0.7);
       if (Math.random() < spaceRate) {
@@ -367,11 +404,22 @@ export function mount(root, options) {
   }
 
   function paint(c, s) {
+    var col = s.col || null, box = !!s.box;
+    // Crossfade from the old look. A change in the first half of a fade keeps the glyph that is
+    // fading out, so no glyph ever jumps to full strength.
+    if (animated() && c.w >= 0.5 && (s.g !== c.g || col !== c.color || box !== c.box)) {
+      if (c.f >= 0.5) {
+        c.og = c.g; c.oc = colorOf(c); c.ob = c.box; c.ol = showsLabel(c);
+        c.f = c.f < 1 ? 1 - c.f : 0;
+      }
+      move(c);
+    }
     c.g = s.g;
-    c.color = s.col || null;
-    c.box = !!s.box;
+    c.color = col;
+    c.box = box;
     c.pad = !!s.pad;
     c.gone = !!s.gone;
+    c.mix = !!s.mix;
     c.label = c.box && Math.random() < o.labels;
     retarget(c);
     markDirty(c.line);
@@ -425,7 +473,7 @@ export function mount(root, options) {
   function rests(c) { return o.rest === 'plain' && !c.woke; }
 
   function wakeCell(c) {
-    if (c.woke || o.rest !== 'plain') return;
+    if (c.woke || o.rest !== 'plain' || c.anchor) return;
     (c.word ? c.word.cells : [c]).forEach(function (x) { x.woke = true; });
   }
 
@@ -461,7 +509,7 @@ export function mount(root, options) {
     cells.forEach(function (c) {
       if (!c.woke || c.reverting || (c.word && c !== c.word.cells[0])) return;
       var off = (maxLen - c.len) / 2 + c.col;
-      c.settle = ((off / maxLen) * REVERT_WAVE_MS + Math.random() * 150) / sp;
+      c.settle = ((off / maxLen) * REVERT_WAVE_MS + Math.random() * 40) / sp;
       (c.word ? c.word.cells : [c]).forEach(function (x) { x.reverting = true; });
       reverting.push(c);
     });
@@ -478,8 +526,29 @@ export function mount(root, options) {
   }
 
   // ---- text model ----
+  // ---- anchor: one word that never changes and never moves; its line grows outward from it ----
+  // anchor: true pins the first *highlighted* run, a string its first match (a whole word if any).
+  function pin(L, str, at) {
+    var from = -1, to = -1, cs = L.cells;
+    if (o.anchor === true) {
+      for (var i = 0; i < cs.length; i++) {
+        if (from < 0 ? cs[i].hl && cs[i].ch !== ' ' : !cs[i].hl) { if (from < 0) from = i; else break; }
+      }
+      to = i;
+      while (to > from && cs[to - 1].ch === ' ') to--;
+    } else if (typeof o.anchor === 'string' && o.anchor) {
+      var k = wordAt(str, o.anchor);
+      if (k >= 0) { from = at[k]; to = at[k + o.anchor.length]; }
+    }
+    if (!(from >= 0 && to > from)) return false;
+    L.a0 = from;
+    L.a1 = to;
+    for (var j = from; j < to; j++) cs[j].anchor = true;
+    return true;
+  }
+
   function build() {
-    var plain = [];
+    var plain = [], pinned = false;
     var src = Array.isArray(o.lines) ? o.lines : String(o.lines).split('\n');
     lines = [];
     cells = [];
@@ -489,14 +558,15 @@ export function mount(root, options) {
     cancelRevert();
     src.forEach(function (text, li) {
       var parsed = parseLine(String(text));
-      var L = { cells: [], top: 0, left: 0, width: 0, natural: 0, grid: 0 };
+      var L = { cells: [], top: 0, left: 0, width: 0, a0: 0, a1: 0 };
       var at = [], offset = 0, str = '';
       parsed.forEach(function (p, col) {
         var c = {
           ch: p.ch, hl: p.hl, line: li, col: col, len: parsed.length, word: null, grid: 1,
           g: p.ch, color: null, box: false, pad: false, gone: false, label: false,
-          hot: 0, inHot: false, settle: 0, settled: true,
-          w: 0, w0: 0, tw: -1, t0: 0, ease: EASE_MS, x: 0, moving: false, prev: null,
+          hot: 0, inHot: false, settle: 0, settled: true, mix: false, anchor: false,
+          w: 0, w0: 0, tw: -1, v: 0, peak: 0, stiff: SPRING, x: 0, moving: false, prev: null,
+          og: ' ', oc: '', ob: false, ol: false, f: 1,
           woke: false, reverting: false
         };
         at[offset] = col;
@@ -506,14 +576,15 @@ export function mount(root, options) {
         L.cells.push(c);
       });
       at[offset] = parsed.length;
-      // Mark whole words that have a symbol (never inside *highlighted* text).
+      if (!pinned) pinned = pin(L, str, at);
+      // Mark whole words that have a symbol (never inside *highlighted* text or the anchor).
       var re = /[\p{L}\p{M}]+/gu, m;
       while ((m = re.exec(str))) {
         var sym = wordTable[m[0].toLowerCase()];
         var from = at[m.index], to = at[m.index + m[0].length];
         if (!sym || from === undefined || to === undefined) continue;
         var wc = L.cells.slice(from, to);
-        if (wc.some(function (c) { return c.hl; })) continue;
+        if (wc.some(function (c) { return c.hl || c.anchor; })) continue;
         var w = { sym: sym, cells: wc, on: false };
         wc.forEach(function (c) { c.word = w; });
       }
@@ -572,13 +643,17 @@ export function mount(root, options) {
     if (m.fontBoundingBoxAscent) { ascEm = m.fontBoundingBoxAscent / 100; descEm = m.fontBoundingBoxDescent / 100; }
     maxLen = maxNatural = maxGrid = 1;
     lines.forEach(function (L) {
-      var natural = 0, grid = 0;
-      L.cells.forEach(function (c) {
-        var gw = glyphW(c.ch);
-        c.grid = Math.max(1, Math.round(gw / monoEm));
-        natural += Math.max(monoEm, gw);
-        grid += c.grid * monoEm;
+      var natural = 0, grid = 0, mid = 0;
+      L.cells.forEach(function (c, i) {
+        c.grid = Math.max(1, Math.round(glyphW(c.ch) / monoEm));
+        if (i === L.a0) mid = natural;
+        if (i === L.a1) mid = (mid + natural) / 2;
+        natural += plainWidth(c.ch, 0);
+        grid += plainWidth(c.ch, c.grid);
       });
+      if (L.a1 === L.cells.length) mid = (mid + natural) / 2;
+      // An anchored line is as wide as twice its longer side, since the anchor stays in the middle.
+      if (L.a1) { grid *= 2 * Math.max(mid, natural - mid) / natural; natural = 2 * Math.max(mid, natural - mid); }
       maxLen = Math.max(maxLen, L.cells.length);
       maxNatural = Math.max(maxNatural, natural);
       maxGrid = Math.max(maxGrid, grid);
@@ -597,22 +672,27 @@ export function mount(root, options) {
     }
     lineH = fs * LINE_H;
     boxH = fs * CELL_H;
-    monoPx = monoEm * fs;
+    monoPx = (monoEm + o.tracking) * fs;
     fontPx = fs + 'px ' + stack;
     labelPx = Math.max(8, Math.round(fs * LABEL_EM)) + 'px ' + MONO_STACK + ', monospace';
     H = Math.ceil(lines.length * lineH + fs * 0.3);  // room for labels under the last line
     dpr = Math.min(win.devicePixelRatio || 1, 3);
     moving = [];
-    cells.forEach(function (c) { c.moving = false; c.tw = slotWidth(c); c.w = c.w0 = c.tw; });
+    cells.forEach(function (c) { c.moving = false; c.tw = slotWidth(c); c.w = c.w0 = c.peak = c.tw; c.v = 0; c.f = 1; });
     lines.forEach(function (L, i) { L.top = i * lineH; layoutLine(L); markDirty(i); });
     renderer.resize();
   }
 
+  // Slot positions in the line, and its left edge: centred, or with the anchor's middle at the
+  // element's middle. The widths move on springs, so the centring needs no spring of its own: one
+  // that lags makes the letters right of a changing slot go one way, then back.
   function layoutLine(L) {
     var x = 0;
     for (var i = 0; i < L.cells.length; i++) { L.cells[i].x = x; x += L.cells[i].w; }
     L.width = x;
-    L.left = (W - x) / 2;
+    if (!L.a1) { L.left = (W - x) / 2; return; }
+    var a = L.cells[L.a0], b = L.cells[L.a1 - 1];
+    L.left = (W - a.x - b.x - b.w) / 2;
   }
 
   function colorOf(c) { return c.color || (c.hl ? o.highlight : o.base); }
@@ -636,6 +716,9 @@ export function mount(root, options) {
   }
 
   function showsLabel(c) { return c.box && c.label && o.boxStyle !== 'soft' && c.w >= 0.5; }
+
+  // How far the crossfade to the current look is, eased: 0 shows the old look, 1 the new one.
+  function fadeOf(c) { return c.f >= 1 ? 1 : c.f * c.f * (3 - 2 * c.f); }
 
   // ---- the canvas: draws what the cells say, nothing else ----
   function canvasRenderer() {
@@ -666,12 +749,22 @@ export function mount(root, options) {
         ctx.stroke();
         return;
       }
-      var bx = Math.round(x + 1) + 0.5, by = Math.round(y) + 0.5;
-      var bw = Math.round(w - 2) - 1, bh = Math.round(boxH) - 1;
+      // x is not rounded, so a box glides with its slot.
+      var bx = x + 1.5, by = Math.round(y) + 0.5, bw = w - 3, bh = Math.round(boxH) - 1;
       ctx.globalAlpha = 0.06 * a;
       ctx.fillRect(bx, by, bw, bh);
       ctx.globalAlpha = a;
       ctx.strokeRect(bx, by, bw, bh);
+    }
+
+    // One glyph with its box, at alpha a.
+    function look(x, top, base, w, g, col, hasBox, a) {
+      if (a <= 0) return;
+      if (hasBox) box(x, top, w, col, a);
+      if (g === ' ') return;
+      ctx.globalAlpha = a;
+      ctx.fillStyle = col;
+      ctx.fillText(g, x + w / 2, base);
     }
 
     function drawLine(L, labelsOnly) {
@@ -685,28 +778,25 @@ export function mount(root, options) {
           c = L.cells[i];
           if (c.w < 0.5) continue;
           x = L.left + c.x;
-          var col = colorOf(c), a = alphaOf(c);
-          if (c.box) box(x, top, c.w, col, a);
-          if (c.g !== ' ') {
-            ctx.globalAlpha = a;
-            ctx.fillStyle = col;
-            ctx.fillText(c.g, x + c.w / 2, base);
-          }
+          var a = alphaOf(c), p = fadeOf(c);
+          if (p < 1) look(x, top, base, c.w, c.og, c.oc, c.ob, a * (1 - p));
+          look(x, top, base, c.w, c.g, colorOf(c), c.box, a * p);
         }
       }
       var labelled = false;
       for (i = 0; i < L.cells.length; i++) {
         c = L.cells[i];
-        if (!showsLabel(c)) continue;
+        var shown = showsLabel(c), fade = fadeOf(c), la = (shown ? fade : 0) + (c.ol && fade < 1 ? 1 - fade : 0);
+        if (!la || c.w < 0.5) continue;
         if (!labelled) {
           labelled = true;
           ctx.font = labelPx;
           ctx.textAlign = 'left';
           ctx.textBaseline = 'top';
         }
-        ctx.globalAlpha = 0.9 * alphaOf(c);
-        ctx.fillStyle = colorOf(c);
-        ctx.fillText(labelText(c), Math.round(L.left + c.x + 1), top + boxH + 1);
+        ctx.globalAlpha = 0.9 * la * alphaOf(c);
+        ctx.fillStyle = shown ? colorOf(c) : c.oc;
+        ctx.fillText(labelText(c), L.left + c.x + 1, top + boxH + 1);
       }
       ctx.globalAlpha = 1;
     }
@@ -750,6 +840,18 @@ export function mount(root, options) {
     renderer.draw(list);
   }
 
+  // Moves c.w (velocity c.v) toward target on a critically damped spring of stiffness k, for dt ms.
+  // Exact for any frame time, so it looks the same at 60, 120 or 144 Hz. Returns false once it
+  // has arrived.
+  function spring(c, target, k, dt) {
+    var t = dt / 1000, d = c.w - target, e = Math.exp(-k * t), j = (c.v + k * d) * t;
+    d = (d + j) * e;
+    c.v = (c.v - k * j) * e;
+    if (Math.abs(d) < 0.1 && Math.abs(c.v) < 6) { c.w = target; c.v = 0; return false; }
+    c.w = target + d;
+    return true;
+  }
+
   // ---- the loop: runs only while something moves ----
   function animated() { return !reduce && o.motion !== 'still'; }
   function active() { return !dead && onScreen && !document.hidden; }
@@ -773,20 +875,40 @@ export function mount(root, options) {
     } else {
       lastTick = 0;
     }
-    stepWidths(now);
+    if (reverting.length) settleWave(now);
+    var dt = lastFrame ? Math.min(now - lastFrame, 100) : 1000 / 60;
+    stepWidths(dt);
     flush();
-    if (busy()) raf = win.requestAnimationFrame(frame);
+    lastFrame = busy() ? now : 0;
+    if (lastFrame) raf = win.requestAnimationFrame(frame);
   }
 
-  function stepWidths(now) {
+  function stepWidths(dt) {
     var still = [];
     for (var i = 0; i < moving.length; i++) {
-      var c = moving[i], p = Math.max(0, (now - c.t0) / c.ease);
-      if (p >= 1) { c.w = c.tw; c.moving = false; }
-      else { c.w = c.w0 + (c.tw - c.w0) * (1 - Math.pow(1 - p, 4)); still.push(c); }
+      var c = moving[i], target = c.tw;
+      if (c.mix && c.peak > c.tw) target = c.peak = c.tw + (c.peak - c.tw) * Math.exp(-dt / PEAK_MS);
+      else c.peak = c.tw;
+      var going = c.w !== target && spring(c, target, c.stiff, dt);
+      if (c.f < 1) c.f = Math.min(1, c.f + dt / FADE_MS);
+      if (going || c.f < 1 || c.w !== c.tw) still.push(c);
+      else { c.moving = false; c.v = 0; }
       markDirty(c.line);
     }
     moving = still;
+  }
+
+  // Woken characters go back to plain at their own time in the wave, on the frame it comes.
+  function settleWave(now) {
+    if (!revertStart) revertStart = now;
+    var left = [];
+    for (var j = 0; j < reverting.length; j++) {
+      var rc = reverting[j];
+      if (now < revertStart + rc.settle || isHot(rc)) { left.push(rc); continue; }
+      sleep(rc);
+      (rc.word ? rc.word.cells : [rc]).forEach(function (x) { x.reverting = false; });
+    }
+    reverting = left;
   }
 
   function tick(now) {
@@ -799,18 +921,6 @@ export function mount(root, options) {
         else { c.hot = 0; c.inHot = false; refresh(c, false); }
       }
       hot = still;
-    }
-
-    if (reverting.length) {
-      if (!revertStart) revertStart = now;
-      var left = [];
-      for (var j = 0; j < reverting.length; j++) {
-        var rc = reverting[j];
-        if (now < revertStart + rc.settle || isHot(rc)) { left.push(rc); continue; }
-        sleep(rc);
-        (rc.word ? rc.word.cells : [rc]).forEach(function (x) { x.reverting = false; });
-      }
-      reverting = left;
     }
 
     if (decoding) {
@@ -845,7 +955,7 @@ export function mount(root, options) {
       if (room <= 0) continue;
       for (var i = 0; i < L.cells.length; i++) {
         var c = L.cells[i], dx = (L.left + c.x + c.w / 2 - pointer.x) / rx;
-        if (dx * dx < room) {
+        if (dx * dx < room && !c.anchor) {
           wakeCell(c);
           c.hot = until;
           if (!c.inHot) { c.inHot = true; hot.push(c); }
@@ -884,7 +994,7 @@ export function mount(root, options) {
       hot = [];
       decoding = false;
       settleAll();
-      moving.forEach(function (c) { c.w = c.tw; c.moving = false; });
+      moving.forEach(function (c) { c.w = c.peak = c.tw; c.v = 0; c.f = 1; c.moving = false; });
       moving = [];
     }
     wake();
@@ -908,7 +1018,7 @@ export function mount(root, options) {
   function update(next) {
     next = next || {};
     var linesChanged = next.lines && JSON.stringify(next.lines) !== JSON.stringify(o.lines);
-    var rebuild = linesChanged || 'wordMap' in next;
+    var rebuild = linesChanged || 'wordMap' in next || 'anchor' in next;
     var refont = ('font' in next && next.font !== o.font) || 'fonts' in next;
     Object.assign(o, next);
     if ('rest' in next || !animated()) {
@@ -922,7 +1032,7 @@ export function mount(root, options) {
     tables();
     if (refont) loadFonts();
     if (rebuild) build();
-    if (rebuild || refont) measure();
+    if (rebuild || refont || 'tracking' in next || 'wordSpacing' in next) measure();
     cells.forEach(function (c) { c.prev = null; });
     layout();
     if (rebuild) { settleAll(); if (linesChanged && o.intro) replay(); }
@@ -963,7 +1073,7 @@ export function mount(root, options) {
   layout();
   settleAll();
   if (o.intro) replay();
-  moving.forEach(function (c) { c.w = c.tw; c.moving = false; });
+  moving.forEach(function (c) { c.w = c.peak = c.tw; c.f = 1; c.moving = false; });
   moving = [];
   if (!decoding) flush();
   wake();

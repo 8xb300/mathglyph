@@ -21,10 +21,11 @@ const LANGUAGES = {
     lines: [
       'every letter is a *variable*',
       'and every word, a small *proof*',
-      'move closer and the symbols change',
+      'the symbols *breathe* around it',
       'then settle back into plain text',
       'therefore: nothing is *plain*',
     ],
+    anchor: 'breathe',
   },
   es: {
     name: 'Español',
@@ -87,8 +88,8 @@ const LANGUAGES = {
 // The options the page can change, in the order "Your config" lists them.
 const SHOWN = [
   'lines', 'fonts', 'font', 'wordMap', 'lookalikes', 'palette', 'substitute', 'color', 'box', 'boxStyle', 'labels',
-  'symbols', 'tokens', 'symbolMix', 'legible', 'words', 'motion', 'rest', 'revert', 'intro', 'speed', 'hoverRadius',
-  'expand', 'fit', 'maxSize',
+  'symbols', 'tokens', 'symbolMix', 'legible', 'words', 'motion', 'rest', 'revert', 'anchor', 'intro', 'speed',
+  'hoverRadius', 'expand', 'fit', 'maxSize',
 ];
 
 const $ = (id) => document.getElementById(id);
@@ -97,9 +98,10 @@ const hero = $('hero');
 // What the library does with no options. An empty wordMap adds nothing to the English map.
 const BASE = { ...MathGlyph.defaults, wordMap: {} };
 // Plain at rest is the first view: it shows the slots grow and shrink best.
-const state = { ...BASE, lines: LANGUAGES.en.lines, fonts: [MATH_FONT], rest: 'plain' };
+// The middle line's white word is the anchor: it stays still while the rest breathes around it.
+const state = { ...BASE, lines: LANGUAGES.en.lines, fonts: [MATH_FONT], rest: 'plain', anchor: LANGUAGES.en.anchor };
 let tableName = null;  // which entry of TABLES is in state.lookalikes
-const fx = MathGlyph.mount(hero, { lines: state.lines, fonts: state.fonts, rest: state.rest });
+const fx = MathGlyph.mount(hero, { lines: state.lines, fonts: state.fonts, rest: state.rest, anchor: state.anchor });
 
 function set(patch) {
   Object.assign(state, patch);
@@ -162,7 +164,12 @@ $('lang').addEventListener('change', () => {
   $('text').lang = code;
   $('text').value = language.lines.join('\n');
   tableName = language.lookalikes || null;
-  set({ lines: language.lines, wordMap: language.wordMap || {}, lookalikes: tableName && TABLES[tableName] });
+  set({
+    lines: language.lines,
+    wordMap: language.wordMap || {},
+    lookalikes: tableName && TABLES[tableName],
+    anchor: language.anchor || null,
+  });
 });
 
 $('text-form').addEventListener('submit', (event) => {

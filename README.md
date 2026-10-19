@@ -19,12 +19,14 @@ A typical text-scramble effect cycles random characters in a fixed grid. mathgly
 
 - **Real math, not noise.** Letters swap to Unicode's math alphabets (𝔸 𝒢 𝔣 𝑛, with the older letters that fill the block's holes, like ℝ ℂ ℍ ℎ) and to notation from 21 fields, from logic and calculus to category theory.
 - **Slots that fit the glyph.** Each slot widens to fit the glyph it shows, so wide symbols and short tokens (∫₀, ℏω, ⊗², &&) fit and the lines breathe. `expand: false` keeps a strict grid.
+- **Smooth breathing.** Slot widths move on critically damped springs that run on the real frame time, and lines stay centred on them, so the motion never jumps or turns back when a glyph changes mid-motion, at 60, 120 or 144 Hz. A scrambling slot keeps its widest recent width for a moment instead of twitching with each glyph, glyphs crossfade, and boxes and labels move with their slots to the subpixel.
+- **An anchor word.** `anchor` pins one word: it never changes, it stays at the middle of the element, and its line grows outward from it, so only the letters beyond a widening slot move.
 - **Readable at rest.** Look-alike swaps (∃ for E, ∪ for U, ∅ for O) and math versions of the same letter keep words legible.
 - **Whole-word swaps.** Words with a symbol meaning turn into it: and → ∧, therefore → ∴, every → ∀. You can add your own words, in any language.
 - **Bounding-box labels.** Boxes look like vision-model detections: a thin 1px rectangle with a tiny label that shows the slot's real width change, such as `Δx=30px`. `boxStyle: 'soft'` draws a rounded box instead.
 - **Any script, any font.** Text is split into grapheme clusters, widths are measured per glyph, and you can load your own fonts.
 - **No work when idle.** No timers or frames run while nothing moves, while the text is off screen, or while the tab is hidden.
-- **About 9 KB** minified and gzipped, with no dependencies. See [Performance](#performance).
+- **About 10 KB** minified and gzipped, with no dependencies. See [Performance](#performance).
 
 ## Use cases
 
@@ -42,7 +44,7 @@ mathglyph is not on npm yet. Load it from jsDelivr, or copy `dist/` into your pr
 ```html
 <h1 id="hero">Every proof starts with a good guess</h1>
 <script type="module">
-  import { mount } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.2.2/dist/mathglyph.min.js';
+  import { mount } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.3.0/dist/mathglyph.min.js';
   const lines = ['Every proof starts', 'with a *good* guess'];  // *stars* highlight a word
   mount(document.getElementById('hero'), { lines, palette: 'ice' });
 </script>
@@ -51,7 +53,7 @@ mathglyph is not on npm yet. Load it from jsDelivr, or copy `dist/` into your pr
 With a plain script tag, the same exports are on the global `MathGlyph`:
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.2.2/dist/mathglyph.iife.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.3.0/dist/mathglyph.iife.min.js"></script>
 <script>
   MathGlyph.mount(document.getElementById('hero'), { lines: ['Every proof starts', 'with a *good* guess'] });
 </script>
@@ -87,6 +89,17 @@ mount(document.getElementById('hero'), {
 
 The intro decodes to plain text. On hover or touch, the characters near the pointer turn into glyphs and stay so while the pointer is over the text. When the pointer has been away for `revert` seconds (default 0, so at once), the glyphs settle back to their letters in a short wave from left to right, and the slots narrow. The pointer is away when it leaves the text or the window, when the window loses focus, or when the page is hidden. A change of options while the pointer is away also ends in plain text. The next hover picks new glyphs.
 
+### Anchor
+
+```js
+mount(document.getElementById('hero'), {
+  lines: ['every letter is a *variable*', 'the symbols *breathe* around it', 'then settle back'],
+  anchor: 'breathe',  // or true: the first *highlighted* word
+});
+```
+
+The anchor never swaps, never gets a box and never moves. Its middle sits at the middle of the element. In its line, the letters to its left grow leftward and the letters to its right grow rightward. The other lines centre on the same point. Put the anchor near the middle of its line: a line with much more text on one side reaches further out on that side.
+
 ### Without JavaScript
 
 Put the plain text in the element, as in the first Quick start example. `mount` replaces it with the effect, and `destroy()` puts it back. Without JavaScript, or before the script loads, visitors and crawlers see the plain text.
@@ -116,8 +129,11 @@ Every option has a default. Pass any of them to `mount`, or change them later wi
 | `motion` | `'hover'` | `'hover'`: still until the pointer moves over it. `'always'`: adds a slow reshuffle. `'still'`: no animation. |
 | `rest` | `'glyphs'` | `'glyphs'`: some letters show glyphs at rest. `'plain'`: plain text at rest, glyphs only where the pointer touched. See [Plain at rest](#plain-at-rest). |
 | `revert` | `0` | With `rest: 'plain'`: seconds after the pointer leaves before the text goes back to plain. |
+| `anchor` | `null` | A word that never changes and never moves: a string pins its first match (a whole word if there is one), `true` the first *highlighted* word. See [Anchor](#anchor). |
+| `tracking` | `-0.02` | Extra space between letters, in em. Negative values set letters closer. |
+| `wordSpacing` | `0.45` | The width of a space, in em. A monospace space is about `0.6`. |
 | `intro` | `true` | Left-to-right decode on first show. |
-| `speed` | `1` | How fast the scramble flickers and settles, from `0.25` to `2`. |
+| `speed` | `1` | How fast the scramble flickers and settles, from `0.25` to `2`. It also sets how fast slots and lines glide. |
 | `hoverRadius` | `2.6` | How far the pointer reaches, in character heights. |
 | `expand` | `true` | Each slot widens to fit its glyph. `false` keeps a strict grid. |
 | `base` | `'#8d8b93'` | Colour of plain text. |
@@ -208,7 +224,7 @@ The module also exports its built-in tables:
 Use them to build on the defaults:
 
 ```js
-import { mount, sets, palettes } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.2.2/dist/mathglyph.min.js';
+import { mount, sets, palettes } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.3.0/dist/mathglyph.min.js';
 
 mount(element, {
   symbols: Object.keys(sets).filter((name) => name !== 'greek'),  // every group but Greek
@@ -249,8 +265,8 @@ Lines are split into grapheme clusters with `Intl.Segmenter`, so any script work
 The built-in look-alike table covers Latin. Greek and Cyrillic tables ship as a separate module, `dist/languages.min.js` (under 1 KB gzipped), so pages that don't need them don't load them. Plug them in with `lookalikes`:
 
 ```js
-import { mount } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.2.2/dist/mathglyph.min.js';
-import { greek, cyrillic } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.2.2/dist/languages.min.js';
+import { mount } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.3.0/dist/mathglyph.min.js';
+import { greek, cyrillic } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.3.0/dist/languages.min.js';
 
 mount(element, {
   lines: ['каждый знак — *переменная*'],
@@ -309,18 +325,33 @@ Hovering over 2,000 characters (25 lines of 80) for 5 seconds, with a synthetic 
 
 | | First version | DOM renderer | Canvas (ships) |
 |---|---:|---:|---:|
-| Main-thread time per frame while hovering | 8.1 ms | 5.7 ms | **2.6 ms** |
-| Browser CPU while hovering (all processes) | 88% | 63% | **25%** |
+| Main-thread time per frame while hovering | 8.1 ms | 5.7 ms | **3.0 ms** |
+| Browser CPU while hovering (all processes) | 88% | 63% | **28%** |
 | Frames over 20 ms | 0 | 0 | 0 |
 | Timer and frame wakeups in 10 s at rest | 167 | 0 | **0** |
 | Wakeups in 5 s off screen, `motion: 'always'` | 83 | 0 | **0** |
-| Size, minified and gzipped | 6,018 B | | 9,471 B |
+| Size, minified and gzipped | 6,018 B | | 10,545 B |
 
 - *First version*: the original script, one `<span>` per character, CSS width transitions, a 60 ms `setInterval` that never stops, and `getBoundingClientRect` on every character for each pointer move.
 - *DOM renderer*: this engine drawing into absolutely positioned spans moved with transforms. It ran 2.2× slower than canvas and added 0.8 KB, so it was dropped. It lives in commit `1f75b33` if you want to compare.
-- *Canvas*: what ships. About 3 KB of its 9 KB are the symbol tables. The Greek and Cyrillic tables are a separate 0.9 KB module. It does more than the first version: fonts, languages, labels, pausing.
+- *Canvas*: what ships. About 3 KB of its 10 KB are the symbol tables. The Greek and Cyrillic tables are a separate 0.9 KB module. It does more than the first version: fonts, languages, labels, pausing, springs and crossfades.
 
 To run the benchmark: `npm install && npm run build`, then `npm i -D playwright && npx playwright install chromium && node bench/run.mjs`. `node bench/plain.mjs` checks that the demo with `rest: 'plain'` always goes back to plain text.
+
+### Motion
+
+`bench/motion.mjs` records where each glyph is drawn on every frame while a pointer sweeps over the preview text and leaves it, then compares the frames. Median of 5 seeds, same machine:
+
+| | v0.2.2 | v0.3.0 |
+|---|--:|--:|
+| Hover: largest change of a glyph's speed between two frames | 8.4 px | **2.1 px** |
+| Hover: times a glyph turns back, per second | 2.7 | **0.9** |
+| Hover: times a line's left edge turns back, per second | 3.0 | **1.0** |
+| Hover: largest move of a glyph in one frame | 9.1 px | **6.0 px** |
+| Back to plain: times a glyph turns back, per second | 0.9 | **0.8** |
+| Back to plain: largest move of a glyph in one frame | 3.1 px | 3.2 px |
+
+`node bench/motion.mjs path/to/old/mathglyph.js` measures an older build on the same page.
 
 ## Accessibility
 

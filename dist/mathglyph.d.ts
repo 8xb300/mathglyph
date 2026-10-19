@@ -56,6 +56,16 @@ export interface Options {
   rest?: 'glyphs' | 'plain';
   /** With rest: 'plain', seconds after the pointer leaves before the text goes back to plain. Default 0: at once. */
   revert?: number;
+  /**
+   * A word that never changes and never moves. A string pins its first match (a whole word if
+   * there is one), `true` the first *highlighted* word. Its middle stays at the middle of the
+   * element, and its line grows outward from it. Default null: no anchor.
+   */
+  anchor?: string | boolean | null;
+  /** Extra space between letters, in em. Can be negative. Default -0.02. */
+  tracking?: number;
+  /** The width of a space, in em. Default 0.45 (a monospace space is about 0.6). */
+  wordSpacing?: number;
   intro?: boolean;
   speed?: number;
   hoverRadius?: number;

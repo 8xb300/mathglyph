@@ -1,4 +1,4 @@
-/*! mathglyph v0.2.2 | MIT | github.com/8xb300/mathglyph */
+/*! mathglyph v0.3.0 | MIT | github.com/8xb300/mathglyph */
 
 // src/mathglyph.js
 var BASE = { bold: 119808, italic: 119860, script: 119964, fraktur: 120068, double: 120120 };
@@ -287,6 +287,9 @@ var DEFAULTS = {
   motion: "hover",
   rest: "glyphs",
   revert: 0,
+  anchor: null,
+  tracking: -0.02,
+  wordSpacing: 0.45,
   intro: true,
   speed: 1,
   hoverRadius: 2.6,
@@ -304,8 +307,10 @@ var LINE_H = 1.5;
 var CELL_H = 1.24;
 var LABEL_EM = 0.26;
 var TICK = 60;
-var EASE_MS = 260;
-var REVERT_EASE_MS = 520;
+var SPRING = 20;
+var SETTLE_SPRING = 13;
+var PEAK_MS = 350;
+var FADE_MS = 80;
 var REVERT_WAVE_MS = 700;
 var segmenter = typeof Intl !== "undefined" && Intl.Segmenter ? new Intl.Segmenter(void 0, { granularity: "grapheme" }) : null;
 function graphemes(s) {
@@ -330,6 +335,14 @@ function greekVariant(ch) {
 }
 function isLatin(ch) {
   return /^[A-Za-z]$/.test(ch);
+}
+var LETTER = /[\p{L}\p{M}\p{N}]/u;
+function wordAt(str, word) {
+  var first = str.indexOf(word);
+  for (var k = first; k >= 0; k = str.indexOf(word, k + 1)) {
+    if (!LETTER.test(str.charAt(k - 1)) && !LETTER.test(str.charAt(k + word.length))) return k;
+  }
+  return first;
 }
 function parseLine(line) {
   var out = [], hl = false;
@@ -366,7 +379,7 @@ function mount(root, options) {
   var widths = {}, stack = "", monoEm = 0.6, ascEm = 0.8, descEm = 0.2;
   var W = contentWidth(root), H = 0, dpr = 1, fs = 16, lineH = 24, boxH = 20, monoPx = 9.6;
   var fontPx = "", labelPx = "";
-  var decoding = false, decodeStart = 0, idleAcc = 0, lastTick = 0;
+  var decoding = false, decodeStart = 0, idleAcc = 0, lastTick = 0, lastFrame = 0;
   var reverting = [], revertStart = 0, revertTimer = 0;
   var raf = 0, dead = false, onScreen = true, needMeasure = false, needLayout = false;
   var pointer = null, pointerMoved = false, rect = null;
@@ -457,22 +470,31 @@ function mount(root, options) {
     if (w === void 0) w = widths[g] = measureText("100px " + stack, g).width / 100;
     return w;
   }
+  function plainWidth(ch, grid) {
+    if (ch === " ") return o.wordSpacing;
+    return (grid ? grid * monoEm : Math.max(monoEm, glyphW(ch))) + o.tracking;
+  }
   function slotWidth(c) {
-    if (!o.expand) return c.grid * monoPx;
+    if (!o.expand) return plainWidth(c.ch, c.grid) * fs;
     if (c.gone) return 0;
-    return (Math.max(monoEm, glyphW(c.g)) + (c.box ? BOX_PAD : 0) + (c.pad ? SPACE_PAD : 0)) * fs;
+    if (c.g === " ") return o.wordSpacing * fs;
+    return (Math.max(monoEm, glyphW(c.g)) + o.tracking + (c.box ? BOX_PAD : 0) + (c.pad ? SPACE_PAD : 0)) * fs;
   }
   function retarget(c) {
     var tw = slotWidth(c);
     if (tw === c.tw) return;
     c.tw = tw;
     if (!animated()) {
-      c.w = tw;
+      c.w = c.peak = tw;
+      c.v = 0;
       return;
     }
     c.w0 = c.w;
-    c.t0 = performance.now();
-    c.ease = c.reverting ? REVERT_EASE_MS : EASE_MS;
+    if (!c.mix || tw > c.peak) c.peak = tw;
+    c.stiff = (c.reverting || c.gone || c.w0 < 0.5 ? SETTLE_SPRING : SPRING) * Math.max(o.speed, 0.25);
+    move(c);
+  }
+  function move(c) {
     if (!c.moving) {
       c.moving = true;
       moving.push(c);
@@ -483,7 +505,13 @@ function mount(root, options) {
     dirtyAny = true;
   }
   function roll(c, scramble) {
+    var s = choose(c, scramble);
+    s.mix = scramble;
+    return s;
+  }
+  function choose(c, scramble) {
     var pal = palette();
+    if (c.anchor) return { g: c.ch, col: null, box: false };
     if (c.ch === " ") {
       var spaceRate = (scramble ? 0.2 : o.substitute * 0.12) * (1 - o.legible * 0.7);
       if (Math.random() < spaceRate) {
@@ -505,11 +533,23 @@ function mount(root, options) {
     return { g: sub ? mutate(c.ch) : c.ch, col, box: colored && Math.random() < Math.min(1, o.box * 1.8) };
   }
   function paint(c, s) {
+    var col = s.col || null, box = !!s.box;
+    if (animated() && c.w >= 0.5 && (s.g !== c.g || col !== c.color || box !== c.box)) {
+      if (c.f >= 0.5) {
+        c.og = c.g;
+        c.oc = colorOf(c);
+        c.ob = c.box;
+        c.ol = showsLabel(c);
+        c.f = c.f < 1 ? 1 - c.f : 0;
+      }
+      move(c);
+    }
     c.g = s.g;
-    c.color = s.col || null;
-    c.box = !!s.box;
+    c.color = col;
+    c.box = box;
     c.pad = !!s.pad;
     c.gone = !!s.gone;
+    c.mix = !!s.mix;
     c.label = c.box && Math.random() < o.labels;
     retarget(c);
     markDirty(c.line);
@@ -570,7 +610,7 @@ function mount(root, options) {
     return o.rest === "plain" && !c.woke;
   }
   function wakeCell(c) {
-    if (c.woke || o.rest !== "plain") return;
+    if (c.woke || o.rest !== "plain" || c.anchor) return;
     (c.word ? c.word.cells : [c]).forEach(function(x) {
       x.woke = true;
     });
@@ -607,7 +647,7 @@ function mount(root, options) {
     cells.forEach(function(c) {
       if (!c.woke || c.reverting || c.word && c !== c.word.cells[0]) return;
       var off = (maxLen - c.len) / 2 + c.col;
-      c.settle = (off / maxLen * REVERT_WAVE_MS + Math.random() * 150) / sp;
+      c.settle = (off / maxLen * REVERT_WAVE_MS + Math.random() * 40) / sp;
       (c.word ? c.word.cells : [c]).forEach(function(x) {
         x.reverting = true;
       });
@@ -625,8 +665,32 @@ function mount(root, options) {
     if (o.revert > 0) revertTimer = win.setTimeout(startRevert, o.revert * 1e3);
     else startRevert();
   }
+  function pin(L, str, at) {
+    var from = -1, to = -1, cs = L.cells;
+    if (o.anchor === true) {
+      for (var i = 0; i < cs.length; i++) {
+        if (from < 0 ? cs[i].hl && cs[i].ch !== " " : !cs[i].hl) {
+          if (from < 0) from = i;
+          else break;
+        }
+      }
+      to = i;
+      while (to > from && cs[to - 1].ch === " ") to--;
+    } else if (typeof o.anchor === "string" && o.anchor) {
+      var k = wordAt(str, o.anchor);
+      if (k >= 0) {
+        from = at[k];
+        to = at[k + o.anchor.length];
+      }
+    }
+    if (!(from >= 0 && to > from)) return false;
+    L.a0 = from;
+    L.a1 = to;
+    for (var j = from; j < to; j++) cs[j].anchor = true;
+    return true;
+  }
   function build() {
-    var plain = [];
+    var plain = [], pinned = false;
     var src = Array.isArray(o.lines) ? o.lines : String(o.lines).split("\n");
     lines = [];
     cells = [];
@@ -636,7 +700,7 @@ function mount(root, options) {
     cancelRevert();
     src.forEach(function(text, li) {
       var parsed = parseLine(String(text));
-      var L = { cells: [], top: 0, left: 0, width: 0, natural: 0, grid: 0 };
+      var L = { cells: [], top: 0, left: 0, width: 0, a0: 0, a1: 0 };
       var at = [], offset = 0, str = "";
       parsed.forEach(function(p, col) {
         var c = {
@@ -657,14 +721,22 @@ function mount(root, options) {
           inHot: false,
           settle: 0,
           settled: true,
+          mix: false,
+          anchor: false,
           w: 0,
           w0: 0,
           tw: -1,
-          t0: 0,
-          ease: EASE_MS,
+          v: 0,
+          peak: 0,
+          stiff: SPRING,
           x: 0,
           moving: false,
           prev: null,
+          og: " ",
+          oc: "",
+          ob: false,
+          ol: false,
+          f: 1,
           woke: false,
           reverting: false
         };
@@ -675,6 +747,7 @@ function mount(root, options) {
         L.cells.push(c);
       });
       at[offset] = parsed.length;
+      if (!pinned) pinned = pin(L, str, at);
       var re = /[\p{L}\p{M}]+/gu, m;
       while (m = re.exec(str)) {
         var sym = wordTable[m[0].toLowerCase()];
@@ -682,7 +755,7 @@ function mount(root, options) {
         if (!sym || from === void 0 || to === void 0) continue;
         var wc = L.cells.slice(from, to);
         if (wc.some(function(c) {
-          return c.hl;
+          return c.hl || c.anchor;
         })) continue;
         var w = { sym, cells: wc, on: false };
         wc.forEach(function(c) {
@@ -742,13 +815,19 @@ function mount(root, options) {
     }
     maxLen = maxNatural = maxGrid = 1;
     lines.forEach(function(L) {
-      var natural = 0, grid = 0;
-      L.cells.forEach(function(c) {
-        var gw = glyphW(c.ch);
-        c.grid = Math.max(1, Math.round(gw / monoEm));
-        natural += Math.max(monoEm, gw);
-        grid += c.grid * monoEm;
+      var natural = 0, grid = 0, mid = 0;
+      L.cells.forEach(function(c, i) {
+        c.grid = Math.max(1, Math.round(glyphW(c.ch) / monoEm));
+        if (i === L.a0) mid = natural;
+        if (i === L.a1) mid = (mid + natural) / 2;
+        natural += plainWidth(c.ch, 0);
+        grid += plainWidth(c.ch, c.grid);
       });
+      if (L.a1 === L.cells.length) mid = (mid + natural) / 2;
+      if (L.a1) {
+        grid *= 2 * Math.max(mid, natural - mid) / natural;
+        natural = 2 * Math.max(mid, natural - mid);
+      }
       maxLen = Math.max(maxLen, L.cells.length);
       maxNatural = Math.max(maxNatural, natural);
       maxGrid = Math.max(maxGrid, grid);
@@ -766,7 +845,7 @@ function mount(root, options) {
     }
     lineH = fs * LINE_H;
     boxH = fs * CELL_H;
-    monoPx = monoEm * fs;
+    monoPx = (monoEm + o.tracking) * fs;
     fontPx = fs + "px " + stack;
     labelPx = Math.max(8, Math.round(fs * LABEL_EM)) + "px " + MONO_STACK + ", monospace";
     H = Math.ceil(lines.length * lineH + fs * 0.3);
@@ -775,7 +854,9 @@ function mount(root, options) {
     cells.forEach(function(c) {
       c.moving = false;
       c.tw = slotWidth(c);
-      c.w = c.w0 = c.tw;
+      c.w = c.w0 = c.peak = c.tw;
+      c.v = 0;
+      c.f = 1;
     });
     lines.forEach(function(L, i) {
       L.top = i * lineH;
@@ -791,7 +872,12 @@ function mount(root, options) {
       x += L.cells[i].w;
     }
     L.width = x;
-    L.left = (W - x) / 2;
+    if (!L.a1) {
+      L.left = (W - x) / 2;
+      return;
+    }
+    var a = L.cells[L.a0], b = L.cells[L.a1 - 1];
+    L.left = (W - a.x - b.x - b.w) / 2;
   }
   function colorOf(c) {
     return c.color || (c.hl ? o.highlight : o.base);
@@ -811,6 +897,9 @@ function mount(root, options) {
   }
   function showsLabel(c) {
     return c.box && c.label && o.boxStyle !== "soft" && c.w >= 0.5;
+  }
+  function fadeOf(c) {
+    return c.f >= 1 ? 1 : c.f * c.f * (3 - 2 * c.f);
   }
   function canvasRenderer() {
     var cv = document.createElement("canvas");
@@ -843,12 +932,19 @@ function mount(root, options) {
         ctx.stroke();
         return;
       }
-      var bx = Math.round(x + 1) + 0.5, by = Math.round(y) + 0.5;
-      var bw = Math.round(w - 2) - 1, bh = Math.round(boxH) - 1;
+      var bx = x + 1.5, by = Math.round(y) + 0.5, bw = w - 3, bh = Math.round(boxH) - 1;
       ctx.globalAlpha = 0.06 * a;
       ctx.fillRect(bx, by, bw, bh);
       ctx.globalAlpha = a;
       ctx.strokeRect(bx, by, bw, bh);
+    }
+    function look2(x, top, base, w, g, col, hasBox, a) {
+      if (a <= 0) return;
+      if (hasBox) box(x, top, w, col, a);
+      if (g === " ") return;
+      ctx.globalAlpha = a;
+      ctx.fillStyle = col;
+      ctx.fillText(g, x + w / 2, base);
     }
     function drawLine(L, labelsOnly) {
       var cy = L.top + lineH / 2, top = cy - boxH / 2, base = cy + (ascEm - descEm) * fs / 2;
@@ -861,28 +957,25 @@ function mount(root, options) {
           c = L.cells[i];
           if (c.w < 0.5) continue;
           x = L.left + c.x;
-          var col = colorOf(c), a = alphaOf(c);
-          if (c.box) box(x, top, c.w, col, a);
-          if (c.g !== " ") {
-            ctx.globalAlpha = a;
-            ctx.fillStyle = col;
-            ctx.fillText(c.g, x + c.w / 2, base);
-          }
+          var a = alphaOf(c), p = fadeOf(c);
+          if (p < 1) look2(x, top, base, c.w, c.og, c.oc, c.ob, a * (1 - p));
+          look2(x, top, base, c.w, c.g, colorOf(c), c.box, a * p);
         }
       }
       var labelled = false;
       for (i = 0; i < L.cells.length; i++) {
         c = L.cells[i];
-        if (!showsLabel(c)) continue;
+        var shown = showsLabel(c), fade = fadeOf(c), la = (shown ? fade : 0) + (c.ol && fade < 1 ? 1 - fade : 0);
+        if (!la || c.w < 0.5) continue;
         if (!labelled) {
           labelled = true;
           ctx.font = labelPx;
           ctx.textAlign = "left";
           ctx.textBaseline = "top";
         }
-        ctx.globalAlpha = 0.9 * alphaOf(c);
-        ctx.fillStyle = colorOf(c);
-        ctx.fillText(labelText(c), Math.round(L.left + c.x + 1), top + boxH + 1);
+        ctx.globalAlpha = 0.9 * la * alphaOf(c);
+        ctx.fillStyle = shown ? colorOf(c) : c.oc;
+        ctx.fillText(labelText(c), L.left + c.x + 1, top + boxH + 1);
       }
       ctx.globalAlpha = 1;
     }
@@ -927,6 +1020,18 @@ function mount(root, options) {
     dirtyAny = false;
     renderer.draw(list);
   }
+  function spring(c, target, k, dt) {
+    var t = dt / 1e3, d = c.w - target, e = Math.exp(-k * t), j = (c.v + k * d) * t;
+    d = (d + j) * e;
+    c.v = (c.v - k * j) * e;
+    if (Math.abs(d) < 0.1 && Math.abs(c.v) < 6) {
+      c.w = target;
+      c.v = 0;
+      return false;
+    }
+    c.w = target + d;
+    return true;
+  }
   function animated() {
     return !reduce && o.motion !== "still";
   }
@@ -957,24 +1062,45 @@ function mount(root, options) {
     } else {
       lastTick = 0;
     }
-    stepWidths(now);
+    if (reverting.length) settleWave(now);
+    var dt = lastFrame ? Math.min(now - lastFrame, 100) : 1e3 / 60;
+    stepWidths(dt);
     flush();
-    if (busy()) raf = win.requestAnimationFrame(frame);
+    lastFrame = busy() ? now : 0;
+    if (lastFrame) raf = win.requestAnimationFrame(frame);
   }
-  function stepWidths(now) {
+  function stepWidths(dt) {
     var still = [];
     for (var i = 0; i < moving.length; i++) {
-      var c = moving[i], p = Math.max(0, (now - c.t0) / c.ease);
-      if (p >= 1) {
-        c.w = c.tw;
+      var c = moving[i], target = c.tw;
+      if (c.mix && c.peak > c.tw) target = c.peak = c.tw + (c.peak - c.tw) * Math.exp(-dt / PEAK_MS);
+      else c.peak = c.tw;
+      var going = c.w !== target && spring(c, target, c.stiff, dt);
+      if (c.f < 1) c.f = Math.min(1, c.f + dt / FADE_MS);
+      if (going || c.f < 1 || c.w !== c.tw) still.push(c);
+      else {
         c.moving = false;
-      } else {
-        c.w = c.w0 + (c.tw - c.w0) * (1 - Math.pow(1 - p, 4));
-        still.push(c);
+        c.v = 0;
       }
       markDirty(c.line);
     }
     moving = still;
+  }
+  function settleWave(now) {
+    if (!revertStart) revertStart = now;
+    var left = [];
+    for (var j = 0; j < reverting.length; j++) {
+      var rc = reverting[j];
+      if (now < revertStart + rc.settle || isHot(rc)) {
+        left.push(rc);
+        continue;
+      }
+      sleep(rc);
+      (rc.word ? rc.word.cells : [rc]).forEach(function(x) {
+        x.reverting = false;
+      });
+    }
+    reverting = left;
   }
   function tick(now) {
     var flicker = Math.min(0.9, 0.45 * o.speed);
@@ -992,22 +1118,6 @@ function mount(root, options) {
         }
       }
       hot = still;
-    }
-    if (reverting.length) {
-      if (!revertStart) revertStart = now;
-      var left = [];
-      for (var j = 0; j < reverting.length; j++) {
-        var rc = reverting[j];
-        if (now < revertStart + rc.settle || isHot(rc)) {
-          left.push(rc);
-          continue;
-        }
-        sleep(rc);
-        (rc.word ? rc.word.cells : [rc]).forEach(function(x) {
-          x.reverting = false;
-        });
-      }
-      reverting = left;
     }
     if (decoding) {
       if (!decodeStart) decodeStart = now;
@@ -1046,7 +1156,7 @@ function mount(root, options) {
       if (room <= 0) continue;
       for (var i = 0; i < L.cells.length; i++) {
         var c = L.cells[i], dx = (L.left + c.x + c.w / 2 - pointer.x) / rx;
-        if (dx * dx < room) {
+        if (dx * dx < room && !c.anchor) {
           wakeCell(c);
           c.hot = until;
           if (!c.inHot) {
@@ -1096,7 +1206,9 @@ function mount(root, options) {
       decoding = false;
       settleAll();
       moving.forEach(function(c) {
-        c.w = c.tw;
+        c.w = c.peak = c.tw;
+        c.v = 0;
+        c.f = 1;
         c.moving = false;
       });
       moving = [];
@@ -1127,7 +1239,7 @@ function mount(root, options) {
   function update(next) {
     next = next || {};
     var linesChanged = next.lines && JSON.stringify(next.lines) !== JSON.stringify(o.lines);
-    var rebuild = linesChanged || "wordMap" in next;
+    var rebuild = linesChanged || "wordMap" in next || "anchor" in next;
     var refont = "font" in next && next.font !== o.font || "fonts" in next;
     Object.assign(o, next);
     if ("rest" in next || !animated()) {
@@ -1146,7 +1258,7 @@ function mount(root, options) {
     tables();
     if (refont) loadFonts();
     if (rebuild) build();
-    if (rebuild || refont) measure();
+    if (rebuild || refont || "tracking" in next || "wordSpacing" in next) measure();
     cells.forEach(function(c) {
       c.prev = null;
     });
@@ -1191,7 +1303,8 @@ function mount(root, options) {
   settleAll();
   if (o.intro) replay();
   moving.forEach(function(c) {
-    c.w = c.tw;
+    c.w = c.peak = c.tw;
+    c.f = 1;
     c.moving = false;
   });
   moving = [];
