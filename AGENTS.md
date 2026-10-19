@@ -32,6 +32,8 @@ npm run build
 The build is deterministic. After a build, `git status` shows changes only in files that you changed in `src/`, plus the matching `dist/` and `docs/` copies.
 Commit those copies in the same commit as the source. `package-lock.json` is not tracked.
 
+A release is a pushed tag `vX.Y.Z` that matches `package.json`. `.github/workflows/release.yml` then publishes to npm with trusted publishing and creates the GitHub release.
+
 ## Run the demo locally
 
 Run the build first. The demo is static files, so any static server works:

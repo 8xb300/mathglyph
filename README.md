@@ -44,7 +44,21 @@ A typical text-scramble effect cycles random characters in a fixed grid. mathgly
 
 ## Quick start
 
-mathglyph is not on npm yet. Load it from jsDelivr, or copy `dist/` into your project.
+```sh
+npm i mathglyph
+pnpm add mathglyph
+yarn add mathglyph
+bun add mathglyph
+```
+
+```js
+import { mount, register } from 'mathglyph';
+import { ring } from 'mathglyph/layouts/ring';
+import { firework } from 'mathglyph/effects/firework';
+import { greek, cyrillic, cjk } from 'mathglyph/languages';
+```
+
+The package has no dependencies and ships its own types. Without a bundler, load it from jsDelivr, as below, or copy `dist/` into your project.
 
 ```html
 <h1 id="hero">Every proof starts with a good guess</h1>
@@ -386,7 +400,7 @@ Gzipped: zlib level 9, as `npm run build` prints.
 
 ### Package exports
 
-mathglyph is not on npm yet. To install it from GitHub, run `npm install github:8xb300/mathglyph#v0.6.1`. The package exports the core, the languages, and every module by name, with their types:
+The npm package `mathglyph` exports the core, the languages, and every module by name, with their types:
 
 ```js
 import { mount, register } from 'mathglyph';

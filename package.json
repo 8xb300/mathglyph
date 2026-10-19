@@ -3,31 +3,30 @@
   "version": "0.6.1",
   "description": "A tiny text effect: monospace text where letters swap to math glyphs, breathe, and scramble under the pointer.",
   "type": "module",
-  "main": "dist/mathglyph.js",
-  "module": "dist/mathglyph.js",
-  "types": "dist/mathglyph.d.ts",
+  "main": "./dist/mathglyph.js",
+  "module": "./dist/mathglyph.js",
+  "types": "./dist/mathglyph.d.ts",
   "exports": {
     ".": {
       "types": "./dist/mathglyph.d.ts",
-      "import": "./dist/mathglyph.js"
+      "default": "./dist/mathglyph.js"
     },
     "./languages": {
       "types": "./dist/languages.d.ts",
-      "import": "./dist/languages.min.js"
+      "default": "./dist/languages.min.js"
     },
     "./effects/*": {
       "types": "./dist/effects/*.d.ts",
-      "import": "./dist/effects/*.min.js"
+      "default": "./dist/effects/*.min.js"
     },
     "./layouts/*": {
       "types": "./dist/layouts/*.d.ts",
-      "import": "./dist/layouts/*.min.js"
-    }
+      "default": "./dist/layouts/*.min.js"
+    },
+    "./package.json": "./package.json"
   },
   "files": [
-    "dist",
-    "fonts",
-    "src"
+    "dist"
   ],
   "sideEffects": false,
   "scripts": {
@@ -44,9 +43,22 @@
     "glyph",
     "animation",
     "canvas",
-    "typography"
+    "typography",
+    "hover",
+    "zero-dependencies"
   ],
-  "repository": "github:8xb300/mathglyph",
+  "author": "8xb300",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/8xb300/mathglyph.git"
+  },
   "homepage": "https://8xb300.github.io/mathglyph/",
-  "license": "MIT"
+  "bugs": {
+    "url": "https://github.com/8xb300/mathglyph/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
 }
