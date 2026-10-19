@@ -220,8 +220,10 @@ export interface Options {
   lines?: string[];
   /**
    * How the slots are placed. 'lines' (default): centred lines. 'columns': vertical columns
-   * (settings `spacing`: em from one column to the next, default 1.5; `columnOrder`: 'rtl', 'ltr'
-   * or 'auto', default 'auto': right to left when most characters are CJK). 'grid': a grid where a wide
+   * (settings `columnGap`: em between two columns, which are 1 em wide, default 0.5; `spacing`, from
+   * v0.5.0: em from the middle of one column to the next, wins over `columnGap` when set;
+   * `columnOrder`: 'rtl', 'ltr' or 'auto', default 'auto': right to left when most characters are
+   * CJK). 'grid': a grid where a wide
    * glyph pushes its row and column apart. 'ring': around a circle (setting `gap`: em between two
    * lines, default 1). A name needs its module registered (see `register`), except 'lines'.
    * `{ name, ...settings }` sets the layout's settings.

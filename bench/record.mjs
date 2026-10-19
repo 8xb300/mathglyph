@@ -56,7 +56,7 @@ const PREVIEWS = {
   columns: {
     layout: 'columns',
     lines: ['一字一变量', '一句一证明', '符号*呼吸*着', '又归于平淡'],
-    options: { layout: { name: 'columns', spacing: 2 }, anchor: '呼吸', lookalikes: cjk, maxSize: 40 },
+    options: { layout: { name: 'columns', columnGap: 1 }, anchor: '呼吸', lookalikes: cjk, maxSize: 40 },
   },
   grid: { layout: 'grid', lines: ['every glyph has', 'its own *column*', 'and its own row'] },
   ring: { layout: 'ring', lines: ['every letter goes *round*'], options: { anchor: 'round', maxSize: 40 } },

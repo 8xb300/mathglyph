@@ -1,7 +1,10 @@
 // columns: vertical text. Each line is a column, and the characters stack top to bottom, upright.
 // A slot grows along its column as its glyph widens, so a column breathes up and down from its
 // middle, or from its anchor word, which stays still.
-// spacing: the distance from one column to the next, in em.
+// columnGap: the space between two columns, in em. A column is 1 em wide, the width of a CJK
+// character, so 0 sets the columns side by side, as the characters on a sign.
+// spacing (v0.5.0): the distance from the middle of one column to the next, in em. Code written for
+// v0.5.0 sets it; when set, it wins over columnGap.
 // columnOrder: 'rtl' puts the first line on the right, as in Chinese, Japanese and Korean vertical
 // writing, 'ltr' on the left. 'auto': 'rtl' when most of the characters are CJK, else 'ltr'.
 
@@ -11,7 +14,7 @@ var CJK = /[\p{scx=Han}\p{scx=Hiragana}\p{scx=Katakana}\p{scx=Hangul}]/u;
 
 export var columns = {
   name: 'columns',
-  defaults: { spacing: 1.5, columnOrder: 'auto' },
+  defaults: { columnGap: 0.5, columnOrder: 'auto' },
   vertical: true,
   // The tallest column fits the element's width or 80% of the viewport, whichever is smaller,
   // with room to grow, and all the columns fit the width.
@@ -29,7 +32,7 @@ export var columns = {
       most = Math.max(most, L.a1 ? 2 * Math.max(mid, n - mid) : n);
     });
     var fs = m.fit
-      ? Math.max(8, Math.min(m.maxSize, Math.min(m.width, 0.8 * m.viewH) / (most * 1.2), m.width / (m.lines.length * m.settings.spacing)))
+      ? Math.max(8, Math.min(m.maxSize, Math.min(m.width, 0.8 * m.viewH) / (most * 1.2), m.width / (m.lines.length * stepOf(m.settings))))
       : m.fs;
     return { fs: fs, height: Math.ceil(most * 1.2 * fs), pad: pad };
   },
@@ -38,7 +41,7 @@ export var columns = {
       var order = m.settings.columnOrder;
       m.state.rtl = order === 'auto' ? mostlyCJK(m) : order === 'rtl';
     }
-    var step = m.settings.spacing * m.fs, left = (m.width - m.lines.length * step) / 2;
+    var step = stepOf(m.settings) * m.fs, left = (m.width - m.lines.length * step) / 2;
     m.lines.forEach(function (L, i) {
       var cs = L.cells, y = 0, up = 0, j, c, top;
       // Offsets count from the anchor's first glyph both ways, so that the anchor's own are sums of
@@ -55,6 +58,11 @@ export var columns = {
     });
   }
 };
+
+// em from the middle of one column to the next.
+function stepOf(s) {
+  return s.spacing != null ? s.spacing : 1 + s.columnGap;
+}
 
 function mostlyCJK(m) {
   var cjk = 0, other = 0;

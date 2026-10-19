@@ -17,6 +17,15 @@ const TABLES = { greek, cyrillic, cjk };
 // Always loaded: a small Noto Sans Math subset (OFL), hosted next to this page.
 const MATH_FONT = { family: 'Noto Sans Math', url: './fonts/noto-sans-math-subset.woff2' };
 
+// Heavy CJK fonts for the columns card: Noto Serif HK, JP and KR at weight 900 (OFL), whose bold
+// Ming strokes are close to the characters on Hong Kong MTR station signs. Each file holds only the
+// characters of its card text (see fonts/README.md), so it is about 5 KB.
+const CJK_FONTS = {
+  'zh-Hant': { family: 'Noto Serif HK Black', url: './fonts/noto-serif-hk-900-zh.9b8c2b74.woff2' },
+  ja: { family: 'Noto Serif JP Black', url: './fonts/noto-serif-jp-900-ja.7a93619b.woff2' },
+  ko: { family: 'Noto Serif KR Black', url: './fonts/noto-serif-kr-900-ko.5f54798b.woff2' },
+};
+
 // OFL monospace fonts from Fontsource, served by jsDelivr. Only loaded when picked.
 const FONTS = [
   { family: 'JetBrains Mono', url: 'https://cdn.jsdelivr.net/fontsource/fonts/jetbrains-mono@latest/latin-400-normal.woff2' },
@@ -28,14 +37,9 @@ const FONTS = [
 const LANGUAGES = {
   en: {
     name: 'English',
-    lines: [
-      'every letter is a variable',
-      'and every word, a small proof',
-      'the symbols *breathe* around it',
-      'then settle back into plain text',
-      'therefore: nothing is plain',
-    ],
-    anchor: 'breathe',
+    // Four short lines, so that they take the same large font as the other layouts on a phone.
+    lines: ['every letter', 'a *variable*', 'every word', 'a small proof'],
+    anchor: 'variable',
   },
   es: {
     name: 'Español',
@@ -80,8 +84,12 @@ const LANGUAGES = {
     lines: ['どの文字も*変数*になる', 'どの言葉も小さな*証明*', '近づくと記号が動きだし', 'やがて静かに文字へ戻る'],
   },
   'zh-Hans': {
-    name: '中文',
+    name: '简体中文',
     lines: ['每个字都是一个*变量*', '每句话都是一个*证明*', '靠近一点，符号就会变化', '然后慢慢变回文字'],
+  },
+  'zh-Hant': {
+    name: '繁體中文',
+    lines: ['每個字都是一個*變量*', '每句話都是一個*證明*', '靠近一點，符號就會變化', '然後慢慢變回文字'],
   },
   ko: {
     name: '한국어',
@@ -98,6 +106,8 @@ const LANGUAGES = {
 // The gallery: a card per layout and per effect. 'lines' and 'breathe' are built in; the others are
 // the modules registered above. A card shows CARD_TEXT, or its own lines that fill its shape.
 // `preview` holds options for the card only, so that the shape fits the card's preview.
+// Every layout fills the same box in the hero (see #hero in demo.css) at about the same font size:
+// the text of each card is made for it.
 const CARD_TEXT = ['every letter is', 'a small *variable*'];
 const GALLERY = {
   layout: {
@@ -105,14 +115,16 @@ const GALLERY = {
     columns: {
       module: columns,
       about: 'Vertical CJK text.',
-      // Short columns in a large font. The anchor word, "breath", stays still.
+      // Short columns in a large, heavy font, set close together as the characters on a sign. The
+      // anchor word, "breath", stays still. At most 6 characters a column, with the anchor in the
+      // middle, so that every language fits the hero's box.
       texts: {
-        'zh-Hans': { name: '中文', short: '中', lines: ['一字一变量', '一句一证明', '符号*呼吸*着', '又归于平淡'], anchor: '呼吸' },
-        ja: { name: '日本語', short: '日', lines: ['どの文字も変数', '言葉は小さな証明', '記号は*呼吸*する', 'また文字に戻る'], anchor: '呼吸' },
-        ko: { name: '한국어', short: '한', lines: ['글자는 변수', '낱말은 증명', '기호가 *숨* 쉬고', '다시 글자로'], anchor: '숨' },
+        'zh-Hant': { name: '繁體中文', short: '中', lines: ['一字一變量', '一句一證明', '符號*呼吸*著', '又歸於平淡'], anchor: '呼吸', font: CJK_FONTS['zh-Hant'] },
+        ja: { name: '日本語', short: '日', lines: ['どの字も変数', '言葉は証明', '字は*呼吸*する', 'また字に戻る'], anchor: '呼吸', font: CJK_FONTS.ja },
+        ko: { name: '한국어', short: '한', lines: ['글자는 변수', '낱말은 증명', '늘 *호흡*하고', '다시 글자로'], anchor: '호흡', font: CJK_FONTS.ko },
       },
-      options: { layout: { name: 'columns', spacing: 2 }, lookalikes: cjk, maxSize: 34 },
-      preview: { maxSize: 16, layout: { name: 'columns', spacing: 1.5 } },
+      options: { layout: { name: 'columns', columnGap: 0.15 }, lookalikes: cjk, maxSize: 34 },
+      preview: { maxSize: 16, layout: { name: 'columns', columnGap: 0.15 } },
     },
     grid: {
       module: grid,
@@ -123,7 +135,7 @@ const GALLERY = {
       module: ring,
       about: 'Text around a growing circle.',
       lines: ['every letter goes *round*'],
-      options: { anchor: 'round', maxSize: 30 },
+      options: { anchor: 'round', maxSize: 35 },
       preview: { maxSize: 14 },
     },
   },
@@ -140,7 +152,7 @@ const GALLERY = {
 // Slider ranges for the layout and effect settings: [min, max, step]. Distances are in em.
 const SPEED = [0.25, 3, 0.05];
 const RANGES = {
-  columns: { spacing: [1, 4, 0.1] },
+  columns: { columnGap: [0, 2, 0.05] },
   ring: { gap: [0, 4, 0.1] },
   ripple: { speed: SPEED, radius: [1, 16, 0.5], gap: [0.5, 6, 0.1], pulse: [0, 1.5, 0.05] },
   firework: { speed: SPEED, radius: [0.5, 6, 0.1], power: [0, 3, 0.05], spin: [0, 3, 0.05], sparks: [0, 8, 1] },
@@ -168,6 +180,11 @@ const BASE = { ...MathGlyph.defaults, wordMap: {} };
 const START = { ...BASE, lines: LANGUAGES.en.lines, fonts: [MATH_FONT], rest: 'plain', anchor: LANGUAGES.en.anchor };
 const state = { ...START };
 let tableName = null;  // which entry of TABLES is in state.lookalikes
+// The hero's fonts: the ones the font picker chose, and the font of the layout card's text (the
+// columns card has its own CJK fonts).
+let pickedFonts = START.fonts;
+let cardFont = null;
+const heroFonts = () => (cardFont ? [...pickedFonts, cardFont] : pickedFonts);
 const fx = MathGlyph.mount(hero, { lines: state.lines, fonts: state.fonts, rest: state.rest, anchor: state.anchor });
 const cards = [];  // the live instances in the gallery
 
@@ -360,8 +377,10 @@ function setupOf(name) {
   const lookalikes = options.lookalikes || (language.lookalikes && TABLES[language.lookalikes]) || null;
   return {
     code,
+    font: text.font || null,
     tableName: Object.keys(TABLES).find((key) => TABLES[key] === lookalikes) || null,
     patch: {
+      fonts: text.font ? [...pickedFonts, text.font] : pickedFonts,
       lines: text.lines,
       anchor: options.anchor || text.anchor || null,
       wordMap: language.wordMap || {},
@@ -416,7 +435,7 @@ function addCard(kind, name, { about, lines = CARD_TEXT, texts, options, preview
     maxSize: 18,
     ...options,
     ...preview,
-    ...(text && { lines: text.lines, anchor: text.anchor }),
+    ...(text && { lines: text.lines, anchor: text.anchor, fonts: text.font ? [text.font] : [] }),
   });
   cards.push(mg);
   // Every card sits in a slot, so that all cards are built the same. A card with texts in several
@@ -449,7 +468,7 @@ function addCard(kind, name, { about, lines = CARD_TEXT, texts, options, preview
     for (const other of picker.children) other.setAttribute('aria-pressed', String(other === chip));
     live.lang = code;
     pickedText[name] = code;
-    mg.update({ lines: texts[code].lines, anchor: texts[code].anchor });
+    mg.update({ lines: texts[code].lines, anchor: texts[code].anchor, fonts: texts[code].font ? [texts[code].font] : [] });
   });
   slot.append(picker);
 }
@@ -534,8 +553,9 @@ for (const kind of ['layout', 'effect']) {
 // A layout brings its text, language and sizes to the hero. An effect changes only the effect.
 function pick(kind, name) {
   if (kind === 'layout') {
-    const { code, tableName: table, patch } = setupOf(name);
+    const { code, font, tableName: table, patch } = setupOf(name);
     tableName = table;
+    cardFont = font;
     set(patch);
     showControls(code);
     showCards();
@@ -567,12 +587,9 @@ $('font').add(new Option('Custom…', 'custom'));
 
 // source: a font from FONTS, { family, url } from the custom form, or a bare family name.
 function useFont(source) {
-  if (!source) {
-    set({ fonts: [MATH_FONT], font: BASE.font });
-    return;
-  }
-  const family = typeof source === 'string' ? source : source.family;
-  set({ fonts: [MATH_FONT, source], font: `'${family}', 'Noto Sans Math', ui-monospace, monospace` });
+  const family = source && (typeof source === 'string' ? source : source.family);
+  pickedFonts = source ? [MATH_FONT, source] : [MATH_FONT];
+  set({ fonts: heroFonts(), font: source ? `'${family}', 'Noto Sans Math', ui-monospace, monospace` : BASE.font });
 }
 
 $('font').addEventListener('change', () => {
@@ -714,6 +731,8 @@ how.addEventListener('toggle', () => {
 
 $('reset').addEventListener('click', () => {
   tableName = null;
+  pickedFonts = START.fonts;
+  cardFont = null;
   $('font').value = 'system';
   $('font-form').hidden = true;
   set({ ...START });

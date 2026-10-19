@@ -2,7 +2,8 @@
 // idle page draws no frames.
 //
 // The demo: after a change in the options panel, after a click in the gallery, after the pointer
-// leaves the text or the window, after the window loses focus, and after the page is hidden.
+// leaves the text or the window, after the window loses focus, and after the page is hidden. Its
+// hero keeps one height when the layout or the language changes.
 // Every layout with every effect, on the bench page: the pointer crosses the text and leaves, the
 // text is plain again, and then no frames run. With reduced motion the pointer changes nothing.
 //
@@ -172,6 +173,33 @@ async function demoChecks() {
   await page.close();
 }
 
+// The demo's hero is as tall for every layout and every language of the columns card, at a phone's
+// width and a desktop's, so that the page under it does not move when they change.
+async function heroChecks() {
+  for (const width of [390, 1400]) {
+    const page = await browser.newPage({ viewport: { width, height: 900 } });
+    await page.goto(`${base}/docs/index.html`);
+    await page.waitForSelector('#hero canvas');
+    const sizes = [];
+    const measure = async () => {
+      await sleep(SETTLE_MS);
+      sizes.push(await page.evaluate(() => [document.getElementById('hero').offsetHeight, document.querySelector('.bar').offsetTop]));
+    };
+    for (const button of await page.locator('#bar-layout button').all()) {
+      await button.click();
+      await measure();
+    }
+    for (const chip of await page.locator('.picker [data-text]').all()) {
+      await chip.click();
+      await page.locator('[data-layout="columns"]').click();
+      await measure();
+    }
+    const same = sizes.every(([h, top]) => h === sizes[0][0] && top === sizes[0][1]);
+    report(`hero at ${width} px: one height for every layout and language`, same, `: ${sizes.map(([h]) => h).join(', ')} px`);
+    await page.close();
+  }
+}
+
 // One layout with one effect on the bench page, with the README text and its anchor: the real mouse
 // crosses every line and leaves, then the text must be plain again and no timer or frame may run.
 // With reduced motion the pointer must change nothing at all.
@@ -238,7 +266,10 @@ async function matrix() {
 }
 
 try {
-  if (only !== 'matrix') await demoChecks();
+  if (only !== 'matrix') {
+    await demoChecks();
+    await heroChecks();
+  }
   if (only !== 'demo') await matrix();
 } finally {
   await browser.close();
