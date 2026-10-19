@@ -29,6 +29,14 @@ const HK_FONTS = {
   sung: { family: 'Noto Serif HK Black', url: './fonts/noto-serif-hk-900-hk.75107d12.woff2' },
 };
 const HK_NAMES = { road: 'road-sign style, Dela Gothic One', hei: 'Heiti 黑體, Chiron Hei HK', sung: 'Songti 宋體, Noto Serif HK' };
+// The full faces, as unicode-range slices of about 50 to 100 KB (see fonts/README.md). A face's
+// stylesheet is added only when the hero shows the face with Chinese characters that its subset
+// does not hold. Then the browser downloads only the slices that hold characters on screen.
+const HK_FULL = {
+  road: { family: 'Dela Gothic One Full', css: './fonts/dela-gothic-one/dela-gothic-one.7fdbb7aa.css' },
+  hei: { family: 'Chiron Hei HK Full', css: './fonts/chiron-hei-hk/chiron-hei-hk-900.2afd2089.css' },
+  sung: { family: 'Noto Serif HK Full', css: './fonts/noto-serif-hk/noto-serif-hk-900.0b2550b0.css' },
+};
 const ZH_COLUMNS = { lang: 'zh-Hant', lines: ['一字一變量', '一句一證明', '符號*呼吸*著', '又歸於平淡'], anchor: '呼吸' };
 
 // Heavy CJK fonts for the Japanese and Korean columns: Noto Serif JP and KR at weight 900 (OFL),
@@ -214,7 +222,44 @@ let tableName = null;  // which entry of TABLES is in state.lookalikes
 // columns card has its own CJK fonts).
 let pickedFonts = START.fonts;
 let cardFont = null;
-const heroFonts = () => (cardFont ? [...pickedFonts, cardFont] : pickedFonts);
+const heroFonts = () => withFull(cardFont ? [...pickedFonts, cardFont] : pickedFonts);
+
+// The Hong Kong faces whose full stylesheet is on the page. A full face goes just before its
+// subset in `fonts`. Until a slice arrives, the subset or the next font draws the character, at
+// the same 1 em width, so nothing moves.
+const fullFaces = new Set();
+const faceOf = (font) => Object.keys(HK_FONTS).find((face) => HK_FONTS[face] === font);
+const withFull = (fonts) => fonts.flatMap((font) => (fullFaces.has(faceOf(font)) ? [HK_FULL[faceOf(font)].family, font] : [font]));
+
+function useFullFont(face) {
+  if (!fullFaces.has(face)) {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = HK_FULL[face].css;
+    link.addEventListener('load', () => {
+      fullFaces.add(face);
+      set({ fonts: heroFonts() });
+      loadSlices();
+    });
+    document.head.append(link);
+  }
+}
+
+// The subsets hold the characters of the columns card text and of the hero's Traditional Chinese
+// text. Other Chinese characters in a Hong Kong face need its full face.
+function useFullText() {
+  const subset = new Set([...ZH_COLUMNS.lines, ...LANGUAGES['zh-Hant'].lines].join(''));
+  const face = heroFonts().map(faceOf).find(Boolean);
+  if (face && [...state.lines.join('')].some((ch) => /\p{Script=Han}/u.test(ch) && !subset.has(ch))) useFullFont(face);
+  loadSlices();
+}
+
+// Ask for the slices that the hero's text needs. The engine measures and draws again when they arrive.
+function loadSlices() {
+  for (const face of new Set(heroFonts().map(faceOf))) {
+    if (fullFaces.has(face)) document.fonts.load(`16px '${HK_FULL[face].family}'`, state.lines.join(''));
+  }
+}
 const fx = MathGlyph.mount(hero, { lines: state.lines, fonts: state.fonts, rest: state.rest, anchor: state.anchor });
 const cards = [];  // the live instances in the gallery
 
@@ -301,7 +346,9 @@ $('lang').addEventListener('change', () => {
 $('text-form').addEventListener('submit', (event) => {
   event.preventDefault();
   const lines = $('text').value.split('\n').map((line) => line.trimEnd()).filter(Boolean);
-  if (lines.length) set({ lines });
+  if (!lines.length) return;
+  set({ lines });
+  useFullText();
 });
 
 $('anchor').addEventListener('change', () => set({ anchor: $('anchor').value.trim() || null }));
@@ -413,7 +460,7 @@ function setupOf(name) {
     font: text.font || null,
     tableName: Object.keys(TABLES).find((key) => TABLES[key] === lookalikes) || null,
     patch: {
-      fonts: text.font ? [...pickedFonts, text.font] : pickedFonts,
+      fonts: withFull(text.font ? [...pickedFonts, text.font] : pickedFonts),
       lines: text.lines,
       anchor: options.anchor || text.anchor || null,
       wordMap: language.wordMap || {},
@@ -632,6 +679,7 @@ function useFont(source) {
   // before the columns card's font, and the rest of the text keeps the default font.
   const chinese = Object.values(HK_FONTS).includes(source);
   set({ fonts: heroFonts(), font: source && !chinese ? `'${family}', 'Noto Sans Math', ui-monospace, monospace` : BASE.font });
+  useFullText();
 }
 
 $('font').addEventListener('change', () => {

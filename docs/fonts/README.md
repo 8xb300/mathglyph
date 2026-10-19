@@ -9,6 +9,8 @@ These fonts are for the demo page only. They are not part of the package.
   - `chiron-hei-hk-900-hk.*.woff2`: Chiron Hei HK 2.530 at weight 900 (8,224 B), licence `OFL-chiron-hei-hk.txt`.
   - `noto-serif-hk-900-hk.*.woff2`: Noto Serif HK 2.003 at weight 900 (8,908 B), licence `OFL-noto-serif-cjk.txt`.
 
+- `dela-gothic-one/`, `chiron-hei-hk/`, `noto-serif-hk/`: the full fonts, for any Chinese text: the same fonts at the same weights, with every character from U+2E80 up (CJK, kana, full-width forms), in unicode-range slices. Each folder holds one stylesheet with an `@font-face` rule for each slice, the slices and `OFL.txt`. Dela Gothic One: 8,185 characters in 17 slices, 1.30 MB. Chiron Hei HK: 45,241 characters in 107 slices, 7.48 MB. Noto Serif HK: 19,627 characters in 54 slices, 4.59 MB.
+
 The 8 hex digits before `.woff2` are the start of the file's SHA-256, so a changed file gets a new name and a cache can keep each file forever.
 
 The subsets are Modified Versions under the SIL Open Font License 1.1: unused glyphs, hinting and OpenType layout features are removed. They keep the copyright and licence names.
@@ -21,3 +23,5 @@ To make them again, get the fonts from the google/fonts repository: `ofl/notoser
       --layout-features='' --no-hinting --name-IDs+=0,13,14 --flavor=woff2 --output-file=noto-serif-hk-900-hk.woff2
 
 The texts for the other two: Japanese `どの字も変数言葉は証明字は呼吸するまた字に戻る`, Korean `글자는변수낱말은증명늘호흡하고다시글자로`. Then add the hash to each name: `sha256sum <file> | cut -c1-8`.
+
+To cut the slices, the characters go in the order of the unicode-range slices of the Google Fonts stylesheet for Noto Sans HK, most common first, then the characters that no slice holds, in code point order. Consecutive groups merge until a slice holds about 75 KB. To make one slice again, subset the font from the same instance as above, with the slice's `unicode-range` from the stylesheet as `--unicodes`, and the same flags except `--text`. The slices keep the name IDs 0 to 6, 13 and 14.

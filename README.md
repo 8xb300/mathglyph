@@ -601,6 +601,16 @@ The demo shows Traditional Chinese in three styles seen all over Hong Kong. Pick
 - **Heiti (黑體, 黑):** [Chiron Hei HK](https://github.com/chiron-fonts/chiron-hei-hk) at weight 900 by the Chiron Hei HK Project Authors, from Adobe's Source Han Sans, SIL OFL 1.1. A sans with even strokes, in Hong Kong character forms.
 - **Songti (宋體, 宋):** [Noto Serif HK](https://github.com/notofonts/noto-cjk) at weight 900 by Adobe, for Google's Noto, SIL OFL 1.1. The Ming style: thin horizontals, thick verticals and small triangular serifs, as on MTR station signs.
 
+The first view loads only the subsets. The full fonts are on the page too, as unicode-range slices of about 50 to 100 KB, cut in the order of Google Fonts' slices for Noto Sans HK, so that common characters share a few slices. The demo adds a face's slices only when the hero shows that face with Chinese characters that the subset does not hold. Then the browser downloads only the slices with characters on screen:
+
+| Face | Slices | On disk | Demo text | A typed 17-character sentence |
+|---|---|---|---|---|
+| Dela Gothic One | 17 | 1.30 MB | 0 B | 5 slices, 412 KB, plus 21 KB of CSS |
+| Chiron Hei HK 900 | 107 | 7.48 MB | 0 B | 7 slices, 587 KB, plus 64 KB of CSS |
+| Noto Serif HK 900 | 54 | 4.59 MB | 0 B | 7 slices, 662 KB, plus 44 KB of CSS |
+
+Measured in headless Chromium, with the sentence 香港的路牌由赤柱監獄的囚犯人手刻製. The CSS sizes are gzipped.
+
 ## Languages
 
 Lines are split into grapheme clusters with `Intl.Segmenter`, so any script works, and so do emoji. Widths are measured, so wide characters (CJK, full-width forms) get wide slots.
