@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>mathglyph · a text effect with a math accent</title>
+  <meta name="description" content="mathglyph is a small JavaScript text effect: centered monospace lines where letters swap to math alphabets, Greek look-alikes and operators, then settle. Live demo with every option.">
+  <meta name="theme-color" content="#09090b">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2309090b'/%3E%3Cpath d='M9 7l7 18 7-18M11.7 14h8.6' fill='none' stroke='%23a98bff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="./demo.css">
+  <script type="module" src="./demo.js"></script>
+</head>
+<body>
+  <header class="top">
+    <h1>mathglyph</h1>
+    <p class="tagline">Monospace text with a math accent: letters turn into symbols, then settle.</p>
+    <nav class="links" aria-label="Project">
+      <a href="https://github.com/8xb300/mathglyph">GitHub</a>
+      <a href="https://github.com/8xb300/mathglyph#readme">README</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero" aria-label="Live demo">
+      <div id="hero"></div>
+      <noscript><p class="hint">This demo needs JavaScript.</p></noscript>
+      <p class="hint">Point at the text, or drag across it, to stir the symbols.</p>
+    </section>
+
+    <section class="panel" aria-labelledby="options-title">
+      <div class="panel-head">
+        <h2 id="options-title">Options</h2>
+        <div class="actions">
+          <button type="button" id="replay">Replay</button>
+          <button type="button" id="reroll">Reroll</button>
+        </div>
+      </div>
+
+      <div class="grid">
+        <fieldset>
+          <legend>Text and font</legend>
+          <div class="field">
+            <label for="lang">language</label>
+            <select id="lang" aria-describedby="lang-d"></select>
+            <small id="lang-d">Sets the lines and a word map for that language.</small>
+          </div>
+          <form class="field" id="text-form">
+            <label for="text">custom text</label>
+            <textarea id="text" rows="5" spellcheck="false" aria-describedby="text-d"></textarea>
+            <small id="text-d">One line per row. Wrap words in *stars* to highlight them.</small>
+            <div class="row"><button type="submit">Apply</button></div>
+          </form>
+          <div class="field">
+            <label for="font">font</label>
+            <select id="font" aria-describedby="font-d"></select>
+          </div>
+          <form id="font-form" hidden>
+            <div class="field">
+              <label for="font-family">family name</label>
+              <input type="text" id="font-family" required autocomplete="off" spellcheck="false" placeholder="Victor Mono">
+            </div>
+            <div class="field">
+              <label for="font-url">.woff2 URL</label>
+              <input type="url" id="font-url" autocomplete="off" spellcheck="false" placeholder="https://cdn.jsdelivr.net/fontsource/fonts/victor-mono@latest/latin-400-normal.woff2" aria-describedby="font-url-d">
+              <small id="font-url-d">Leave it empty to use a font installed on this device. The server must allow cross-origin requests.</small>
+            </div>
+            <div class="row"><button type="submit">Use font</button></div>
+          </form>
+          <p class="note" id="font-d">These fonts load from jsDelivr (Fontsource files). The library itself loads no fonts by default. This page also loads a self-hosted subset of Noto Sans Math for the math glyphs.</p>
+        </fieldset>
+
+        <fieldset>
+          <legend>Glyphs</legend>
+          <div class="field">
+            <label for="substitute">substitute</label>
+            <output for="substitute"></output>
+            <input type="range" id="substitute" data-opt="substitute" min="0" max="1" step="0.01" aria-describedby="substitute-d">
+            <small id="substitute-d">Share of letters swapped at rest.</small>
+          </div>
+          <div class="field">
+            <label for="legible">legible</label>
+            <output for="legible"></output>
+            <input type="range" id="legible" data-opt="legible" min="0" max="1" step="0.01" aria-describedby="legible-d">
+            <small id="legible-d">How often a swap looks like its letter (∃ for E).</small>
+          </div>
+          <div class="field">
+            <label for="symbolMix">symbolMix</label>
+            <output for="symbolMix"></output>
+            <input type="range" id="symbolMix" data-opt="symbolMix" min="0" max="1" step="0.01" aria-describedby="symbolMix-d">
+            <small id="symbolMix-d">Share of swaps taken from the symbol groups.</small>
+          </div>
+          <div class="field">
+            <label for="words">words</label>
+            <output for="words"></output>
+            <input type="range" id="words" data-opt="words" min="0" max="1" step="0.01" aria-describedby="words-d">
+            <small id="words-d">How often whole words swap (and → ∧). Needs expand.</small>
+          </div>
+          <div class="check">
+            <input type="checkbox" id="tokens" data-opt="tokens" aria-describedby="tokens-d">
+            <label for="tokens">tokens</label>
+            <small id="tokens-d">Short notation such as ∫₀ or ℏω. Needs expand.</small>
+          </div>
+          <div class="check">
+            <input type="checkbox" id="expand" data-opt="expand" aria-describedby="expand-d">
+            <label for="expand">expand</label>
+            <small id="expand-d">Slots widen to fit each glyph. Off: strict grid.</small>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Colour and boxes</legend>
+          <div class="field">
+            <label for="palette">palette</label>
+            <span class="swatches" id="swatches" aria-hidden="true"></span>
+            <select id="palette" data-opt="palette"></select>
+          </div>
+          <div class="field">
+            <label for="color">color</label>
+            <output for="color"></output>
+            <input type="range" id="color" data-opt="color" min="0" max="1" step="0.01" aria-describedby="color-d">
+            <small id="color-d">How often a glyph gets a palette colour.</small>
+          </div>
+          <div class="field">
+            <label for="box">box</label>
+            <output for="box"></output>
+            <input type="range" id="box" data-opt="box" min="0" max="1" step="0.01" aria-describedby="box-d">
+            <small id="box-d">How often a coloured glyph gets a box.</small>
+          </div>
+          <div class="field">
+            <label for="boxStyle">boxStyle</label>
+            <select id="boxStyle" data-opt="boxStyle" aria-describedby="boxStyle-d">
+              <option value="detect">detect</option>
+              <option value="soft">soft</option>
+            </select>
+            <small id="boxStyle-d">detect: thin bounding box with a label. soft: tinted box.</small>
+          </div>
+          <div class="field">
+            <label for="labels">labels</label>
+            <output for="labels"></output>
+            <input type="range" id="labels" data-opt="labels" min="0" max="1" step="0.01" aria-describedby="labels-d">
+            <small id="labels-d">Share of boxes with a label such as Δx=30px.</small>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Motion and layout</legend>
+          <div class="field">
+            <label for="motion">motion</label>
+            <select id="motion" data-opt="motion" aria-describedby="motion-d">
+              <option value="hover">hover</option>
+              <option value="always">always</option>
+              <option value="still">still</option>
+            </select>
+            <small id="motion-d">hover: moves near the pointer. always: adds a slow reshuffle. still: no animation.</small>
+          </div>
+          <div class="field">
+            <label for="speed">speed</label>
+            <output for="speed"></output>
+            <input type="range" id="speed" data-opt="speed" data-unit="×" min="0.25" max="2" step="0.05" aria-describedby="speed-d">
+            <small id="speed-d">How fast the scramble flickers and settles.</small>
+          </div>
+          <div class="field">
+            <label for="hoverRadius">hoverRadius</label>
+            <output for="hoverRadius"></output>
+            <input type="range" id="hoverRadius" data-opt="hoverRadius" min="0.5" max="8" step="0.1" aria-describedby="hoverRadius-d">
+            <small id="hoverRadius-d">Reach of the pointer, in character heights.</small>
+          </div>
+          <div class="check">
+            <input type="checkbox" id="intro" data-opt="intro" aria-describedby="intro-d">
+            <label for="intro">intro</label>
+            <small id="intro-d">Decode from left to right when the text appears.</small>
+          </div>
+          <div class="check">
+            <input type="checkbox" id="fit" data-opt="fit" aria-describedby="fit-d">
+            <label for="fit">fit</label>
+            <small id="fit-d">Scale the font so the text fits the width.</small>
+          </div>
+          <div class="field">
+            <label for="maxSize">maxSize</label>
+            <output for="maxSize"></output>
+            <input type="range" id="maxSize" data-opt="maxSize" data-unit="px" min="16" max="120" step="1" aria-describedby="maxSize-d">
+            <small id="maxSize-d">Largest font size when fit is on.</small>
+          </div>
+          <div class="field">
+            <label for="renderer">renderer</label>
+            <select id="renderer" data-opt="renderer" aria-describedby="renderer-d">
+              <option value="canvas">canvas</option>
+              <option value="dom">dom</option>
+            </select>
+            <small id="renderer-d">canvas: one drawing surface. dom: one element per glyph.</small>
+          </div>
+        </fieldset>
+
+        <fieldset class="wide">
+          <legend>Symbol groups</legend>
+          <div class="chips" id="groups"></div>
+        </fieldset>
+
+        <fieldset class="wide">
+          <legend>Your config</legend>
+          <pre tabindex="0"><code id="config"></code></pre>
+          <div class="row">
+            <button type="button" id="copy">Copy</button>
+            <span id="copy-status" role="status"></span>
+          </div>
+        </fieldset>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <p>mathglyph is MIT licensed. <a href="https://github.com/8xb300/mathglyph">Source on GitHub</a>.</p>
+  </footer>
+</body>
+</html>

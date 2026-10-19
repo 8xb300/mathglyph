@@ -1,0 +1,157 @@
+:root {
+  color-scheme: dark;
+  --bg: #09090b;
+  --card: #111115;
+  --field: #0b0b0e;
+  --edge: #25252c;
+  --edge-hover: #3a3a44;
+  --text: #e8e6ee;
+  --muted: #9b99a5;
+  --accent: #a98bff;
+  --mono: ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.5 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+a { color: var(--accent); text-underline-offset: 3px; }
+a:hover { color: #c9b8ff; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---- header and hero ---- */
+
+.top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 18px;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 28px 20px 0;
+}
+.top h1 { margin: 0; font: 600 1.5rem/1.2 var(--mono); letter-spacing: .01em; }
+.tagline { flex: 1 1 18rem; margin: 0; color: var(--muted); }
+.links { display: flex; gap: 16px; }
+
+.hero { padding: clamp(40px, 11vh, 130px) 16px clamp(28px, 7vh, 80px); }
+/* The font size only applies when fit is off; with fit on, the library sizes the text. */
+#hero { max-width: 1200px; margin: 0 auto; font-size: clamp(16px, 3vw, 34px); }
+.hint { margin: 32px 0 0; text-align: center; color: var(--muted); font-size: .85rem; }
+
+/* ---- options panel ---- */
+
+.panel { max-width: 1120px; margin: 0 auto; padding: 0 20px 48px; }
+.panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.panel-head h2 { margin: 0; font-size: 1.1rem; }
+.actions, .row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+
+/* Four option cards: one, two or four per row, so no row has a hole. */
+.grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+@media (min-width: 640px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1060px) { .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.wide { grid-column: 1 / -1; }
+
+fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 6px 16px 16px;
+  border: 1px solid var(--edge);
+  border-radius: 12px;
+  background: var(--card);
+}
+legend { padding: 0 6px; font-size: .9rem; font-weight: 600; }
+
+.field {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 4px 8px;
+  margin-top: 12px;
+}
+.field > :is(input, select, textarea, small, .row) { grid-column: 1 / -1; }
+
+.check {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 2px 8px;
+  margin-top: 12px;
+}
+.check small { grid-column: 2; }
+
+label, output { font-family: var(--mono); font-size: .84rem; }
+output { color: var(--muted); font-variant-numeric: tabular-nums; }
+small, .note { color: var(--muted); font-size: .78rem; line-height: 1.4; }
+.note { margin: 14px 0 0; }
+
+input[type=range] { width: 100%; margin: 2px 0; accent-color: var(--accent); }
+input[type=checkbox] { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
+
+select, input[type=text], input[type=url], textarea {
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  background: var(--field);
+  color: var(--text);
+  font: inherit;
+  font-size: .9rem;
+}
+/* No soft wrap: each row of the box is one line of the effect. */
+textarea { resize: vertical; overflow-x: auto; white-space: pre; font-family: var(--mono); line-height: 1.45; }
+form > .row { margin-top: 10px; }
+
+button {
+  padding: 7px 14px;
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  background: #1a1a20;
+  color: var(--text);
+  font: inherit;
+  font-size: .9rem;
+  cursor: pointer;
+}
+button:hover { border-color: var(--edge-hover); background: #222229; }
+
+.swatches { display: flex; gap: 4px; }
+.swatches i { width: 14px; height: 14px; border-radius: 4px; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.chip { padding: 5px 12px; border-radius: 999px; font-size: .84rem; }
+.chip[aria-pressed=true] { border-color: var(--accent); background: var(--accent); color: #111; }
+.sample { margin-left: 6px; opacity: .75; font-family: var(--mono), 'Noto Sans Math'; }
+
+pre {
+  max-height: 420px;
+  margin: 10px 0 12px;
+  padding: 14px;
+  overflow: auto;
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  background: var(--field);
+  font: .82rem/1.55 var(--mono);
+}
+#copy-status { color: var(--muted); font-size: .84rem; }
+
+.foot { padding: 0 20px 40px; text-align: center; color: var(--muted); font-size: .84rem; }
+
+@media (max-width: 560px) {
+  .top { padding-top: 20px; }
+  .panel { padding: 0 12px 40px; }
+  fieldset { padding: 4px 12px 14px; }
+  /* 16px keeps iOS from zooming in when a field gets focus. */
+  select, input[type=text], input[type=url], textarea { font-size: 16px; }
+}
