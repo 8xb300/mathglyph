@@ -1,4 +1,4 @@
-/*! mathglyph v0.1.0 | MIT | github.com/8xb300/mathglyph */
+/*! mathglyph v0.1.1 | MIT | github.com/8xb300/mathglyph */
 
 // src/mathglyph.js
 var BASE = { bold: 119808, italic: 119860, script: 119964, fraktur: 120068, double: 120120 };
@@ -263,7 +263,8 @@ var PALETTES = {
   pastel: ["#8fc27a", "#7aa2f7", "#a98bff", "#e3b34c", "#e8798e", "#5fb8a5"],
   ember: ["#f2a65a", "#e0705f", "#d9c06a", "#c98bd9", "#7fc4b0", "#f3d3a4"],
   ice: ["#7fd1e8", "#8ea8ff", "#b39cff", "#6fe0c2", "#c6d4ff", "#5aa9e6"],
-  mono: ["#f2f2f2", "#c4c4c4", "#a3a3a3", "#dedede", "#b5b5b5", "#8f8f8f"]
+  mono: ["#f2f2f2", "#c4c4c4", "#a3a3a3", "#dedede", "#b5b5b5", "#8f8f8f"],
+  shimmer: ["#a70947", "#ff0000", "#ffa500", "#ffe135", "#008000", "#131836", "#1e90ff"]
 };
 var MONO_STACK = "ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'JetBrains Mono', 'DejaVu Sans Mono', 'Liberation Mono', 'Noto Sans Mono'";
 var DEFAULTS = {

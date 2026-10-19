@@ -1,4 +1,4 @@
-export type PaletteName = 'pastel' | 'ember' | 'ice' | 'mono';
+export type PaletteName = 'pastel' | 'ember' | 'ice' | 'mono' | 'shimmer';
 
 export type GroupName =
   | 'general' | 'calculus' | 'logic' | 'linalg' | 'numbers' | 'geometry'

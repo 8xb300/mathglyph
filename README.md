@@ -41,7 +41,7 @@ mathglyph is not on npm yet. Load it from jsDelivr, or copy `dist/` into your pr
 ```html
 <h1 id="hero">Every proof starts with a good guess</h1>
 <script type="module">
-  import { mount } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.1.0/dist/mathglyph.min.js';
+  import { mount } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.1.1/dist/mathglyph.min.js';
   const lines = ['Every proof starts', 'with a *good* guess'];  // *stars* highlight a word
   mount(document.getElementById('hero'), { lines, palette: 'ice' });
 </script>
@@ -50,7 +50,7 @@ mathglyph is not on npm yet. Load it from jsDelivr, or copy `dist/` into your pr
 With a plain script tag, the same exports are on the global `MathGlyph`:
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.1.0/dist/mathglyph.iife.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.1.1/dist/mathglyph.iife.min.js"></script>
 <script>
   MathGlyph.mount(document.getElementById('hero'), { lines: ['Every proof starts', 'with a *good* guess'] });
 </script>
@@ -85,7 +85,7 @@ Every option has a default. Pass any of them to `mount`, or change them later wi
 | Option | Default | What it does |
 |---|---|---|
 | `lines` | `['plain text, now with', 'a *math* accent']` | One string per row. Wrap words in `*stars*` to highlight them. |
-| `palette` | `'pastel'` | `'pastel'`, `'ember'`, `'ice'`, `'mono'`, or an array of CSS colours. |
+| `palette` | `'pastel'` | `'pastel'`, `'ember'`, `'ice'`, `'mono'`, `'shimmer'`, or an array of CSS colours. `'shimmer'` is the colours of the glyphs in the background of 8xb300.org. |
 | `substitute` | `0.35` | Share of letters swapped at rest. |
 | `color` | `0.55` | How often glyphs get a palette colour. |
 | `box` | `0.22` | How often coloured glyphs get a box. |
@@ -193,7 +193,7 @@ The module also exports its built-in tables:
 Use them to build on the defaults:
 
 ```js
-import { mount, sets, palettes } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.1.0/dist/mathglyph.min.js';
+import { mount, sets, palettes } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.1.1/dist/mathglyph.min.js';
 
 mount(element, {
   symbols: Object.keys(sets).filter((name) => name !== 'greek'),  // every group but Greek
@@ -234,8 +234,8 @@ Lines are split into grapheme clusters with `Intl.Segmenter`, so any script work
 The built-in look-alike table covers Latin. Greek and Cyrillic tables ship as a separate module, `dist/languages.min.js` (under 1 KB gzipped), so pages that don't need them don't load them. Plug them in with `lookalikes`:
 
 ```js
-import { mount } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.1.0/dist/mathglyph.min.js';
-import { greek, cyrillic } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.1.0/dist/languages.min.js';
+import { mount } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.1.1/dist/mathglyph.min.js';
+import { greek, cyrillic } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.1.1/dist/languages.min.js';
 
 mount(element, {
   lines: ['каждый знак — *переменная*'],
