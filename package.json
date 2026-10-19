@@ -1,6 +1,6 @@
 {
   "name": "mathglyph",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "A tiny text effect: monospace text where letters swap to math glyphs, breathe, and scramble under the pointer.",
   "type": "module",
   "main": "dist/mathglyph.js",
@@ -14,6 +14,14 @@
     "./languages": {
       "types": "./dist/languages.d.ts",
       "import": "./dist/languages.min.js"
+    },
+    "./effects/*": {
+      "types": "./dist/effects/*.d.ts",
+      "import": "./dist/effects/*.min.js"
+    },
+    "./layouts/*": {
+      "types": "./dist/layouts/*.d.ts",
+      "import": "./dist/layouts/*.min.js"
     }
   },
   "files": [

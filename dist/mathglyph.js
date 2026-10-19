@@ -1,4 +1,4 @@
-/*! mathglyph v0.3.1 | MIT | github.com/8xb300/mathglyph */
+/*! mathglyph v0.4.0 | MIT | github.com/8xb300/mathglyph */
 
 // src/mathglyph.js
 var BASE = { bold: 119808, italic: 119860, script: 119964, fraktur: 120068, double: 120120 };
@@ -97,6 +97,61 @@ var LOOKALIKE = {
   "0": "∅",
   "1": "∣",
   "3": "∃"
+};
+var SCRIPTS = {
+  greek: {
+    A: "ΛΔ",
+    B: "β",
+    E: "ΣΞ",
+    N: "Π",
+    O: "ΘΦ",
+    W: "Ψ",
+    Y: "Ψ",
+    a: "α",
+    b: "β",
+    c: "ς",
+    d: "δ",
+    e: "εξ",
+    i: "ι",
+    k: "κ",
+    n: "ηπ",
+    o: "σθ",
+    p: "ρ",
+    t: "τ",
+    u: "υμ",
+    v: "ν",
+    w: "ωψ",
+    x: "χ",
+    y: "γ",
+    z: "ζ"
+  },
+  cyrillic: {
+    A: "Д",
+    B: "Б",
+    E: "ЭЁ",
+    I: "Ї",
+    N: "ИЙ",
+    O: "Ф",
+    R: "Я",
+    U: "Ц",
+    W: "Ш",
+    X: "Ж",
+    Y: "У",
+    a: "д",
+    b: "ь",
+    e: "э",
+    h: "ћ",
+    i: "ї",
+    k: "к",
+    n: "п",
+    o: "ф",
+    r: "г",
+    t: "т",
+    u: "ц",
+    w: "ш",
+    x: "ж",
+    y: "ч"
+  }
 };
 var WORDS = {
   and: "∧",
@@ -269,11 +324,16 @@ var PALETTES = {
 var MONO_STACK = "ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'JetBrains Mono', 'DejaVu Sans Mono', 'Liberation Mono', 'Noto Sans Mono'";
 var DEFAULTS = {
   lines: ["plain text, now with", "a *math* accent"],
+  layout: "lines",
+  effect: "breathe",
+  scripts: null,
   palette: "pastel",
   substitute: 0.35,
   color: 0.55,
   box: 0.22,
   boxStyle: "detect",
+  boxJitter: 0.5,
+  boxSpan: 3,
   labels: 0.6,
   labelFormat: null,
   symbols: "all",
@@ -302,6 +362,9 @@ var DEFAULTS = {
   maxSize: 44
 };
 var BOX_PAD = 0.16;
+var BOX_JITTER = 0.3;
+var BOX_OUT = 0.05;
+var SPAN_ODDS = 0.3;
 var SPACE_PAD = 0.34;
 var LINE_H = 1.5;
 var CELL_H = 1.24;
@@ -312,6 +375,7 @@ var SETTLE_SPRING = 13;
 var PEAK_MS = 350;
 var FADE_MS = 80;
 var REVERT_WAVE_MS = 700;
+var RELEASE_MS = 200;
 var segmenter = typeof Intl !== "undefined" && Intl.Segmenter ? new Intl.Segmenter(void 0, { granularity: "grapheme" }) : null;
 function graphemes(s) {
   return segmenter ? Array.from(segmenter.segment(s), function(x) {
@@ -370,15 +434,95 @@ function contentWidth(el) {
   var cs = (el.ownerDocument.defaultView || window).getComputedStyle(el);
   return el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
 }
+function seedOf(i) {
+  var h = Math.imul(i + 1, 2654435761);
+  h = Math.imul(h ^ h >>> 15, 2246822519);
+  return ((h ^ h >>> 13) >>> 0) / 4294967296;
+}
+var BREATHE = {
+  name: "breathe",
+  glyph: function(g, out, f) {
+    var rx = f.radius, dx = (g.cx - f.pointer.x) / rx, dy = (g.cy - f.pointer.y) / (rx * 0.62);
+    out.swap = dx * dx < 1 - dy * dy;
+  }
+};
+var LINES = {
+  name: "lines",
+  bands: true,
+  size: function(m) {
+    var most = 1, grid = 1;
+    m.lines.forEach(function(L) {
+      var n = L.natural, g = L.grid;
+      if (L.a1) {
+        g *= 2 * Math.max(L.mid, n - L.mid) / n;
+        n = 2 * Math.max(L.mid, n - L.mid);
+      }
+      most = Math.max(most, n);
+      grid = Math.max(grid, g);
+    });
+    var fs = m.fit ? Math.max(8, Math.min(m.maxSize, m.width / (m.expand ? most * 1.2 : grid * 1.0333))) : m.fs;
+    return { fs, height: Math.ceil(m.lines.length * (fs * LINE_H) + fs * 0.3) };
+  },
+  place: function(m) {
+    m.lines.forEach(function(L, i) {
+      if (!m.dirty[i]) return;
+      var cs = L.cells, x = 0, j, c;
+      for (j = 0; j < cs.length; j++) {
+        cs[j].x = x;
+        x += cs[j].w;
+      }
+      L.top = i * m.lineH;
+      L.left = L.a1 ? (m.width - cs[L.a0].x - cs[L.a1 - 1].x - cs[L.a1 - 1].w) / 2 : (m.width - x) / 2;
+      for (j = 0; j < cs.length; j++) {
+        c = cs[j];
+        c.cx = L.left + c.x + c.w / 2;
+        c.cy = L.top + m.lineH / 2;
+        c.r = 0;
+      }
+    });
+  }
+};
+var EFFECTS = { breathe: BREATHE };
+var LAYOUTS = { lines: LINES };
+var warned = {};
+function register() {
+  for (var i = 0; i < arguments.length; i++) {
+    var m = arguments[i];
+    if (m && m.glyph) EFFECTS[m.name] = m;
+    else if (m && m.place) LAYOUTS[m.name] = m;
+  }
+}
+function resolve(table, value, fallback) {
+  var mod = value, own = {};
+  if (!value) mod = table[fallback];
+  else if (!value.glyph && !value.place) {
+    var name = value.name || value;
+    mod = table[name];
+    if (typeof value === "object") own = value;
+    if (!mod) {
+      if (!warned[name]) {
+        warned[name] = 1;
+        console.warn("mathglyph: nothing named " + name + " is registered");
+      }
+      mod = table[fallback];
+      own = {};
+    }
+  }
+  var settings = Object.assign({}, mod.defaults, own);
+  delete settings.name;
+  return { mod, settings };
+}
 function mount(root, options) {
   var o = Object.assign({}, DEFAULTS, options || {});
   var win = root.ownerDocument.defaultView || window;
-  var lines = [], cells = [], hot = [], moving = [], dirty = [], dirtyAny = false;
-  var maxLen = 1, maxNatural = 1, maxGrid = 1;
-  var look, wordTable, allSets, pool = [];
+  var lines = [], cells = [], hot = [], moving = [], dirty = [], bandDirty = [], dirtyAny = false;
+  var maxLen = 1;
+  var look, wordTable, allSets, pool = [], scriptList = [], scriptSum = 0;
   var widths = {}, stack = "", monoEm = 0.6, ascEm = 0.8, descEm = 0.2;
   var W = contentWidth(root), H = 0, dpr = 1, fs = 16, lineH = 24, boxH = 20, monoPx = 9.6;
-  var fontPx = "", labelPx = "";
+  var pad = 0, padPx = 0, labelSize = 8, fontPx = "", labelPx = "";
+  var fx, F = { state: {} }, OUT = {}, fxCells = [], fxLast = [], fxOn = false, releaseStart = 0, ease = 1;
+  var lay, M = { state: {} }, layBusy = false, area = { x: 0, y: 0, w: 0, h: 0 }, wander = { x: 0, y: 0 };
   var decoding = false, decodeStart = 0, idleAcc = 0, lastTick = 0, lastFrame = 0;
   var reverting = [], revertStart = 0, revertTimer = 0;
   var raf = 0, dead = false, onScreen = true, needMeasure = false, needLayout = false;
@@ -416,6 +560,23 @@ function mount(root, options) {
     pool = keys.map(function(k) {
       return allSets[k];
     });
+    var ws = o.scripts || {};
+    if (Array.isArray(ws)) ws = ws.reduce(function(m, k) {
+      m[k] = 1;
+      return m;
+    }, {});
+    scriptSum = 0;
+    scriptList = Object.keys(ws).map(function(k) {
+      scriptSum += +ws[k] || 0;
+      return [SCRIPTS[k], scriptSum];
+    });
+  }
+  function scripted(ch) {
+    if (!scriptSum) return null;
+    var r = Math.random() * scriptSum, i = 0;
+    while (scriptList[i][1] <= r) i++;
+    var t = scriptList[i][0];
+    return t && t[ch] ? pick(Array.from(t[ch])) : null;
   }
   function pickSymbol() {
     var set = pick(pool);
@@ -439,6 +600,8 @@ function mount(root, options) {
       return String.fromCodePoint((Math.random() < 0.5 ? 120782 : 120792) + +ch);
     }
     if (!isLatin(ch)) return mutateOther(ch);
+    var alt = scripted(ch);
+    if (alt) return alt;
     if (Math.random() < o.legible) return lookalike(ch);
     if (Math.random() < o.symbolMix) return pickSymbol();
     var r = Math.random();
@@ -475,10 +638,10 @@ function mount(root, options) {
     return (grid ? grid * monoEm : Math.max(monoEm, glyphW(ch))) + o.tracking;
   }
   function slotWidth(c) {
-    if (!o.expand) return plainWidth(c.ch, c.grid) * fs;
+    if (!o.expand) return (plainWidth(c.ch, c.grid) + pad) * fs;
     if (c.gone) return 0;
-    if (c.g === " ") return o.wordSpacing * fs;
-    return (Math.max(monoEm, glyphW(c.g)) + o.tracking + (c.box ? BOX_PAD : 0) + (c.pad ? SPACE_PAD : 0)) * fs;
+    if (c.g === " ") return (o.wordSpacing + pad) * fs;
+    return (Math.max(monoEm, glyphW(c.g)) + o.tracking + (c.box ? BOX_PAD : 0) + (c.pad ? SPACE_PAD : 0) + pad) * fs;
   }
   function retarget(c) {
     var tw = slotWidth(c);
@@ -544,6 +707,7 @@ function mount(root, options) {
       }
       move(c);
     }
+    if (box && !c.box && !(c.ob && c.f < 1)) shape(c);
     c.g = s.g;
     c.color = col;
     c.box = box;
@@ -553,6 +717,18 @@ function mount(root, options) {
     c.label = c.box && Math.random() < o.labels;
     retarget(c);
     markDirty(c.line);
+  }
+  function shape(c) {
+    var j = o.boxJitter * BOX_JITTER, n = 1, next;
+    c.jl = c.jr = c.jt = c.jb = 0;
+    if (j) {
+      c.jl = j * (2 * Math.random() - 1);
+      c.jr = j * (2 * Math.random() - 1);
+      c.jt = Math.min(BOX_OUT, j * (2 * Math.random() - 1));
+      c.jb = Math.min(BOX_OUT, j * (2 * Math.random() - 1));
+    }
+    while (n < o.boxSpan && (next = lines[c.line].cells[c.col + n]) && next.ch !== " " && !next.anchor && Math.random() < SPAN_ODDS) n++;
+    c.span = n;
   }
   function rollWord(w) {
     if (o.expand && Math.random() < o.words) {
@@ -692,15 +868,18 @@ function mount(root, options) {
   function build() {
     var plain = [], pinned = false;
     var src = Array.isArray(o.lines) ? o.lines : String(o.lines).split("\n");
-    lines = [];
+    clearFx();
+    lines = M.lines = [];
     cells = [];
     hot = [];
     moving = [];
-    dirty = [];
+    dirty = M.dirty = [];
+    M.anchor = null;
+    F.state = {};
     cancelRevert();
     src.forEach(function(text, li) {
       var parsed = parseLine(String(text));
-      var L = { cells: [], top: 0, left: 0, width: 0, a0: 0, a1: 0 };
+      var L = { cells: [], top: 0, left: 0, a0: 0, a1: 0, natural: 0, grid: 0, mid: 0 };
       var at = [], offset = 0, str = "";
       parsed.forEach(function(p, col) {
         var c = {
@@ -711,6 +890,7 @@ function mount(root, options) {
           len: parsed.length,
           word: null,
           grid: 1,
+          pw: 0,
           g: p.ch,
           color: null,
           box: false,
@@ -737,8 +917,27 @@ function mount(root, options) {
           ob: false,
           ol: false,
           f: 1,
+          span: 1,
+          jl: 0,
+          jr: 0,
+          jt: 0,
+          jb: 0,
           woke: false,
-          reverting: false
+          reverting: false,
+          i: cells.length,
+          seed: seedOf(cells.length),
+          fx: void 0,
+          cx: 0,
+          cy: 0,
+          r: 0,
+          tf: false,
+          tc: false,
+          tp: false,
+          tx: 0,
+          ty: 0,
+          ts: 1,
+          tr: 0,
+          ta: 1
         };
         at[offset] = col;
         offset += p.ch.length;
@@ -747,7 +946,7 @@ function mount(root, options) {
         L.cells.push(c);
       });
       at[offset] = parsed.length;
-      if (!pinned) pinned = pin(L, str, at);
+      if (!pinned && (pinned = pin(L, str, at))) M.anchor = { line: li, from: L.a0, to: L.a1 };
       var re = /[\p{L}\p{M}]+/gu, m;
       while (m = re.exec(str)) {
         var sym = wordTable[m[0].toLowerCase()];
@@ -813,42 +1012,48 @@ function mount(root, options) {
       ascEm = m.fontBoundingBoxAscent / 100;
       descEm = m.fontBoundingBoxDescent / 100;
     }
-    maxLen = maxNatural = maxGrid = 1;
+    maxLen = 1;
     lines.forEach(function(L) {
       var natural = 0, grid = 0, mid = 0;
       L.cells.forEach(function(c, i) {
         c.grid = Math.max(1, Math.round(glyphW(c.ch) / monoEm));
         if (i === L.a0) mid = natural;
         if (i === L.a1) mid = (mid + natural) / 2;
-        natural += plainWidth(c.ch, 0);
-        grid += plainWidth(c.ch, c.grid);
+        var n = plainWidth(c.ch, 0), g = plainWidth(c.ch, c.grid);
+        c.pw = o.expand ? n : g;
+        natural += n;
+        grid += g;
       });
       if (L.a1 === L.cells.length) mid = (mid + natural) / 2;
-      if (L.a1) {
-        grid *= 2 * Math.max(mid, natural - mid) / natural;
-        natural = 2 * Math.max(mid, natural - mid);
-      }
+      L.natural = natural;
+      L.grid = grid;
+      L.mid = mid;
       maxLen = Math.max(maxLen, L.cells.length);
-      maxNatural = Math.max(maxNatural, natural);
-      maxGrid = Math.max(maxGrid, grid);
     });
     needLayout = true;
   }
   function layout() {
     needLayout = false;
     if (!W) return;
-    if (o.fit) {
-      var perLine = o.expand ? maxNatural * 1.2 : maxGrid * 1.0333;
-      fs = Math.max(8, Math.min(o.maxSize, W / perLine));
-    } else {
-      fs = parseFloat(win.getComputedStyle(root).fontSize) || 16;
-    }
-    lineH = fs * LINE_H;
-    boxH = fs * CELL_H;
-    monoPx = (monoEm + o.tracking) * fs;
+    M.width = W;
+    M.viewH = win.innerHeight;
+    M.fit = o.fit;
+    M.maxSize = o.maxSize;
+    M.expand = o.expand;
+    M.speed = Math.max(o.speed, 0.25);
+    M.lineEm = LINE_H;
+    M.fs = o.fit ? 0 : parseFloat(win.getComputedStyle(root).fontSize) || 16;
+    var s = lay.size(M);
+    fs = M.fs = s.fs;
+    H = M.height = s.height;
+    pad = s.pad || 0;
+    padPx = pad * fs;
+    lineH = M.lineH = fs * LINE_H;
+    boxH = M.boxH = fs * CELL_H;
+    monoPx = (monoEm + o.tracking + pad) * fs;
+    labelSize = Math.max(8, Math.round(fs * LABEL_EM));
     fontPx = fs + "px " + stack;
-    labelPx = Math.max(8, Math.round(fs * LABEL_EM)) + "px " + MONO_STACK + ", monospace";
-    H = Math.ceil(lines.length * lineH + fs * 0.3);
+    labelPx = labelSize + "px " + MONO_STACK + ", monospace";
     dpr = Math.min(win.devicePixelRatio || 1, 3);
     moving = [];
     cells.forEach(function(c) {
@@ -859,25 +1064,20 @@ function mount(root, options) {
       c.f = 1;
     });
     lines.forEach(function(L, i) {
-      L.top = i * lineH;
-      layoutLine(L);
       markDirty(i);
     });
+    M.state = {};
+    M.dt = 0;
+    lay.place(M);
+    var x0 = W, x1 = 0, y0 = H, y1 = 0;
+    cells.forEach(function(c) {
+      x0 = Math.min(x0, c.cx);
+      x1 = Math.max(x1, c.cx);
+      y0 = Math.min(y0, c.cy);
+      y1 = Math.max(y1, c.cy);
+    });
+    area = { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
     renderer.resize();
-  }
-  function layoutLine(L) {
-    var x = 0;
-    for (var i = 0; i < L.cells.length; i++) {
-      L.cells[i].x = x;
-      x += L.cells[i].w;
-    }
-    L.width = x;
-    if (!L.a1) {
-      L.left = (W - x) / 2;
-      return;
-    }
-    var a = L.cells[L.a0], b = L.cells[L.a1 - 1];
-    L.left = (W - a.x - b.x - b.w) / 2;
   }
   function colorOf(c) {
     return c.color || (c.hl ? o.highlight : o.base);
@@ -915,110 +1115,181 @@ function mount(root, options) {
       }
       cv.style.height = H + "px";
     }
-    function box(x, y, w, col, a) {
+    function box(x, y, w, h, col, a) {
       ctx.fillStyle = ctx.strokeStyle = col;
       ctx.lineWidth = 1;
       if (o.boxStyle === "soft") {
         var r = fs * 0.16;
         ctx.globalAlpha = 0.16 * a;
         ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(x, y, w, boxH, r);
-        else ctx.rect(x, y, w, boxH);
+        if (ctx.roundRect) ctx.roundRect(x, y, w, h, r);
+        else ctx.rect(x, y, w, h);
         ctx.fill();
         ctx.globalAlpha = 0.78 * a;
         ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(x + 0.5, y + 0.5, w - 1, boxH - 1, r);
-        else ctx.rect(x + 0.5, y + 0.5, w - 1, boxH - 1);
+        if (ctx.roundRect) ctx.roundRect(x + 0.5, y + 0.5, w - 1, h - 1, r);
+        else ctx.rect(x + 0.5, y + 0.5, w - 1, h - 1);
         ctx.stroke();
         return;
       }
-      var bx = x + 1.5, by = Math.round(y) + 0.5, bw = w - 3, bh = Math.round(boxH) - 1;
+      var bx = x + 1.5, by = Math.round(y) + 0.5, bw = w - 3, bh = Math.round(h) - 1;
       ctx.globalAlpha = 0.06 * a;
       ctx.fillRect(bx, by, bw, bh);
       ctx.globalAlpha = a;
       ctx.strokeRect(bx, by, bw, bh);
     }
-    function look2(x, top, base, w, g, col, hasBox, a) {
+    function look2(x, base, g, col, hasBox, a) {
       if (a <= 0) return;
-      if (hasBox) box(x, top, w, col, a);
+      if (hasBox) box(RX, RY, RW, RH, col, a);
       if (g === " ") return;
       ctx.globalAlpha = a;
       ctx.fillStyle = col;
-      ctx.fillText(g, x + w / 2, base);
+      ctx.fillText(g, x, base);
     }
-    function drawLine(L, labelsOnly) {
-      var cy = L.top + lineH / 2, top = cy - boxH / 2, base = cy + (ascEm - descEm) * fs / 2;
-      var i, c, x;
+    var X = 0, Y = 0, A = 1;
+    function at(c) {
+      var s = 1, r = c.r;
+      X = c.cx;
+      Y = c.cy;
+      A = alphaOf(c);
+      if (c.tf) {
+        X += c.tx * ease;
+        Y += c.ty * ease;
+        s += (c.ts - 1) * ease;
+        r += c.tr * ease;
+        A *= 1 + (c.ta - 1) * ease;
+      }
+      if (s === 1 && !r) return false;
+      var cos = Math.cos(r) * s * dpr, sin = Math.sin(r) * s * dpr;
+      ctx.setTransform(cos, sin, -sin, cos, X * dpr, Y * dpr);
+      X = Y = 0;
+      return true;
+    }
+    var RX = 0, RY = 0, RW = 0, RH = 0;
+    function boxRect(c) {
+      var w = c.w - padPx, more = 0, last = c.span > 1 && !lay.vertical && lines[c.line].cells[c.col + c.span - 1];
+      if (last && !c.r && !last.r && last.cy === c.cy) more = last.cx - c.cx + (last.w - c.w) / 2;
+      RX = X - w / 2 - c.jl * fs;
+      RY = Y - boxH / 2 - c.jt * fs;
+      RW = w + more + (c.jl + c.jr) * fs;
+      RH = boxH + (c.jt + c.jb) * fs;
+    }
+    function drawLooks(c) {
+      var turned = at(c), base = Y + (ascEm - descEm) * fs / 2, p = fadeOf(c);
+      if (c.box || c.ob) boxRect(c);
+      if (p < 1) look2(X, base, c.og, c.oc, c.ob, A * (1 - p));
+      look2(X, base, c.g, colorOf(c), c.box, A * p);
+      if (turned) ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    function drawLabel(c, la, col) {
+      var turned = at(c);
+      boxRect(c);
+      ctx.globalAlpha = 0.9 * la * A;
+      ctx.fillStyle = col;
+      if (lay.vertical) {
+        ctx.save();
+        ctx.translate(RX + RW + 2 + labelSize, RY);
+        ctx.rotate(Math.PI / 2);
+        ctx.fillText(labelText(c), 0, 0);
+        ctx.restore();
+      } else ctx.fillText(labelText(c), RX + 1, RY + RH + 1);
+      if (turned) ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    function drawCells(list, fxPass, labelsOnly) {
+      var i, c, labelled = false;
       if (!labelsOnly) {
         ctx.font = fontPx;
         ctx.textAlign = "center";
         ctx.textBaseline = "alphabetic";
-        for (i = 0; i < L.cells.length; i++) {
-          c = L.cells[i];
-          if (c.w < 0.5) continue;
-          x = L.left + c.x;
-          var a = alphaOf(c), p = fadeOf(c);
-          if (p < 1) look2(x, top, base, c.w, c.og, c.oc, c.ob, a * (1 - p));
-          look2(x, top, base, c.w, c.g, colorOf(c), c.box, a * p);
+        for (i = 0; i < list.length; i++) {
+          c = list[i];
+          if (c.w >= 0.5 && c.tf === fxPass) drawLooks(c);
         }
       }
-      var labelled = false;
-      for (i = 0; i < L.cells.length; i++) {
-        c = L.cells[i];
+      for (i = 0; i < list.length; i++) {
+        c = list[i];
         var shown = showsLabel(c), fade = fadeOf(c), la = (shown ? fade : 0) + (c.ol && fade < 1 ? 1 - fade : 0);
-        if (!la || c.w < 0.5) continue;
+        if (!la || c.w < 0.5 || c.tf !== fxPass) continue;
         if (!labelled) {
           labelled = true;
           ctx.font = labelPx;
           ctx.textAlign = "left";
           ctx.textBaseline = "top";
         }
-        ctx.globalAlpha = 0.9 * la * alphaOf(c);
-        ctx.fillStyle = shown ? colorOf(c) : c.oc;
-        ctx.fillText(labelText(c), L.left + c.x + 1, top + boxH + 1);
+        drawLabel(c, la, shown ? colorOf(c) : c.oc);
       }
       ctx.globalAlpha = 1;
     }
+    var BY = 0, BH = 0;
+    function bandRect(b) {
+      BY = Math.round(b * lineH * dpr) / dpr;
+      BH = (b < lines.length ? Math.round((b + 1) * lineH * dpr) / dpr : H) - BY;
+    }
     function band(b) {
-      var y = b * lineH, h = b < lines.length ? lineH : H - y;
-      if (h <= 0) return;
+      bandRect(b);
+      if (BH <= 0) return;
       ctx.save();
       ctx.beginPath();
-      ctx.rect(0, y, W, h);
+      ctx.rect(0, BY, W, BH);
       ctx.clip();
-      ctx.clearRect(0, y, W, h);
-      if (b < lines.length) drawLine(lines[b], false);
-      if (b > 0) drawLine(lines[b - 1], true);
+      ctx.clearRect(0, BY, W, BH);
+      if (b < lines.length) drawCells(lines[b].cells, false, false);
+      if (b > 0) drawCells(lines[b - 1].cells, false, true);
       ctx.restore();
     }
-    function draw(list) {
+    function draw() {
+      var b, i, c, n = lines.length;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      drawn.length = 0;
-      list.forEach(function(k) {
-        if (!drawn[k]) {
-          drawn[k] = true;
-          band(k);
+      if (lay.bands) {
+        for (b = 0; b <= n; b++) if (drawn[b] = !!(dirty[b] || dirty[b - 1] || bandDirty[b])) band(b);
+      } else {
+        ctx.clearRect(0, 0, W, H);
+        drawCells(cells, false, false);
+      }
+      if (!fxCells.length) return;
+      ctx.save();
+      if (lay.bands) {
+        ctx.beginPath();
+        for (b = 0; b <= n; b++) if (drawn[b]) {
+          bandRect(b);
+          ctx.rect(0, BY, W, BH);
         }
-        if (!drawn[k + 1]) {
-          drawn[k + 1] = true;
-          band(k + 1);
-        }
-      });
+        ctx.clip();
+      }
+      drawCells(fxCells, true, false);
+      for (i = 0; i < fxCells.length; i++) {
+        c = fxCells[i];
+        if (!c.tp || !fx.paint) continue;
+        OUT.x = c.tx;
+        OUT.y = c.ty;
+        OUT.scale = c.ts;
+        OUT.rotate = c.tr;
+        OUT.alpha = c.ta;
+        OUT.swap = false;
+        OUT.paint = true;
+        ctx.save();
+        fx.paint(ctx, c, OUT, F);
+        ctx.restore();
+      }
+      ctx.restore();
     }
     return { el: cv, resize, draw };
   }
   function flush() {
-    if (!dirtyAny) return;
-    var list = [];
-    for (var i = 0; i < lines.length; i++) {
-      if (dirty[i]) {
-        dirty[i] = false;
-        layoutLine(lines[i]);
-        list.push(i);
-      }
+    if (!dirtyAny && !layBusy) return;
+    layBusy = lay.place(M) === true;
+    for (var i = 0; i < fxCells.length; i++) {
+      var c = fxCells[i];
+      if (c.tc || c.tp || dirty[c.line]) markReach(c);
     }
+    renderer.draw();
     dirtyAny = false;
-    renderer.draw(list);
+    for (var b = 0; b <= lines.length; b++) dirty[b] = bandDirty[b] = false;
+  }
+  function markReach(c) {
+    var r = Math.ceil(fx.reach >= 0 ? fx.reach : 1);
+    for (var b = Math.max(0, c.line - r); b <= c.line + r + 1; b++) bandDirty[b] = true;
+    dirtyAny = true;
   }
   function spring(c, target, k, dt) {
     var t = dt / 1e3, d = c.w - target, e = Math.exp(-k * t), j = (c.v + k * d) * t;
@@ -1039,7 +1310,7 @@ function mount(root, options) {
     return !dead && onScreen && !document.hidden;
   }
   function busy() {
-    return moving.length || hot.length || decoding || reverting.length || o.motion === "always" && animated();
+    return moving.length || hot.length || decoding || reverting.length || fxOn || fxCells.length || layBusy || o.motion === "always" && animated();
   }
   function wake() {
     if (!raf && active()) raf = win.requestAnimationFrame(frame);
@@ -1049,10 +1320,8 @@ function mount(root, options) {
     if (!active()) return;
     if (needMeasure) measure();
     if (needLayout) layout();
-    if (pointer && pointerMoved) {
-      pointerMoved = false;
-      scan(now);
-    }
+    var dt = lastFrame ? Math.min(now - lastFrame, 100) : 1e3 / 60;
+    if (animated()) runEffect(now, dt);
     if (animated() && (hot.length || decoding || reverting.length || o.motion === "always")) {
       if (!lastTick || now - lastTick > 4 * TICK) lastTick = now - TICK;
       while (now - lastTick >= TICK) {
@@ -1063,9 +1332,10 @@ function mount(root, options) {
       lastTick = 0;
     }
     if (reverting.length) settleWave(now);
-    var dt = lastFrame ? Math.min(now - lastFrame, 100) : 1e3 / 60;
     stepWidths(dt);
+    M.dt = dt;
     flush();
+    M.dt = 0;
     lastFrame = busy() ? now : 0;
     if (lastFrame) raf = win.requestAnimationFrame(frame);
   }
@@ -1145,27 +1415,128 @@ function mount(root, options) {
       if (!r.hot) refresh(r, false);
     }
   }
-  function scan(now) {
-    if (!animated()) return;
-    var rx = fs * o.hoverRadius, ry = rx * 0.62;
-    var until = now + 260 / Math.max(o.speed, 0.25);
-    var first = Math.max(0, Math.floor((pointer.y - ry) / lineH));
-    var last = Math.min(lines.length - 1, Math.floor((pointer.y + ry) / lineH));
-    for (var li = first; li <= last; li++) {
-      var L = lines[li], dy = (L.top + lineH / 2 - pointer.y) / ry, room = 1 - dy * dy;
-      if (room <= 0) continue;
-      for (var i = 0; i < L.cells.length; i++) {
-        var c = L.cells[i], dx = (L.left + c.x + c.w / 2 - pointer.x) / rx;
-        if (dx * dx < room && !c.anchor) {
-          wakeCell(c);
-          c.hot = until;
-          if (!c.inHot) {
-            c.inHot = true;
-            hot.push(c);
-          }
+  function setFrame(now, dt, p, moved) {
+    F.now = now;
+    F.dt = dt;
+    F.pointer = p;
+    F.moved = moved;
+    F.fs = fs;
+    F.lineH = lineH;
+    F.width = W;
+    F.height = H;
+    F.speed = o.speed;
+    F.radius = fs * o.hoverRadius;
+    F.palette = palette();
+    F.font = fontPx;
+    F.glyphs = cells;
+  }
+  function call(c) {
+    OUT.x = OUT.y = OUT.rotate = 0;
+    OUT.scale = OUT.alpha = 1;
+    OUT.swap = OUT.paint = false;
+    fx.glyph(c, OUT, F);
+    if (OUT.swap) swap(c, F.now);
+  }
+  function swap(c, now) {
+    if (!pointer && o.rest === "plain") return;
+    wakeCell(c);
+    c.hot = now + 260 / Math.max(o.speed, 0.25);
+    if (!c.inHot) {
+      c.inHot = true;
+      hot.push(c);
+    }
+  }
+  function wanderAt(now) {
+    var t = now / 1e3 * Math.max(o.speed, 0.25);
+    wander.x = area.x + area.w * (0.5 + 0.5 * Math.sin(t * 0.43));
+    wander.y = area.y + area.h * (0.5 + 0.5 * Math.sin(t * 0.71 + 1));
+    return wander;
+  }
+  function runEffect(now, dt) {
+    var p = pointer, pm = pointerMoved, i, c;
+    if (!fx.frame) {
+      if (!p || !pm) return;
+      pointerMoved = false;
+      setFrame(now, dt, p, true);
+      for (i = 0; i < cells.length; i++) if (!cells[i].anchor) call(cells[i]);
+      return;
+    }
+    pointerMoved = false;
+    if (!p && o.motion === "always") {
+      p = wanderAt(now);
+      pm = true;
+    }
+    setFrame(now, dt, p, pm);
+    var last = fxCells;
+    fxCells = fxLast;
+    fxLast = last;
+    fxCells.length = 0;
+    fxOn = !!fx.frame(F);
+    if (fxOn) {
+      releaseStart = 0;
+      ease = 1;
+      for (i = 0; i < cells.length; i++) {
+        c = cells[i];
+        if (c.anchor) continue;
+        call(c);
+        if (OUT.x || OUT.y || OUT.scale !== 1 || OUT.rotate || OUT.alpha !== 1 || OUT.paint) {
+          c.tc = !c.tf || c.tx !== OUT.x || c.ty !== OUT.y || c.ts !== OUT.scale || c.tr !== OUT.rotate || c.ta !== OUT.alpha;
+          c.tf = true;
+          c.tx = OUT.x;
+          c.ty = OUT.y;
+          c.ts = OUT.scale;
+          c.tr = OUT.rotate;
+          c.ta = OUT.alpha;
+          c.tp = OUT.paint;
+          if (c.tc || c.tp) dirtyAny = true;
+          fxCells.push(c);
+        } else if (c.tf) {
+          c.tf = false;
+          markReach(c);
         }
       }
+    } else if (last.length) {
+      if (!releaseStart) releaseStart = now;
+      var t = (now - releaseStart) * Math.max(o.speed, 0.25) / RELEASE_MS;
+      ease = t < 1 ? 1 - t * t * (3 - 2 * t) : 0;
+      for (i = 0; i < last.length; i++) {
+        c = last[i];
+        c.tp = false;
+        c.tc = true;
+        if (ease) fxCells.push(c);
+        else {
+          c.tf = false;
+          markReach(c);
+        }
+      }
+      dirtyAny = true;
+      if (!ease) ease = 1;
     }
+  }
+  function clearFx() {
+    fxCells.forEach(function(c) {
+      c.tf = false;
+      markReach(c);
+    });
+    fxCells.length = fxLast.length = 0;
+    fxOn = false;
+    ease = 1;
+    releaseStart = 0;
+  }
+  function useEffect() {
+    var r = resolve(EFFECTS, o.effect, "breathe");
+    clearFx();
+    fx = r.mod;
+    F.settings = r.settings;
+    F.state = {};
+    cells.forEach(function(c) {
+      c.fx = void 0;
+    });
+  }
+  function useLayout() {
+    var r = resolve(LAYOUTS, o.layout, "lines");
+    lay = r.mod;
+    M.settings = r.settings;
   }
   function onMove(e) {
     if (!animated()) return;
@@ -1212,6 +1583,7 @@ function mount(root, options) {
         c.moving = false;
       });
       moving = [];
+      clearFx();
     }
     wake();
   }
@@ -1242,6 +1614,8 @@ function mount(root, options) {
     var rebuild = linesChanged || "wordMap" in next || "anchor" in next;
     var refont = "font" in next && next.font !== o.font || "fonts" in next;
     Object.assign(o, next);
+    if ("effect" in next) useEffect();
+    if ("layout" in next) useLayout();
     if ("rest" in next || !animated()) {
       cells.forEach(function(c) {
         c.woke = false;
@@ -1254,8 +1628,12 @@ function mount(root, options) {
         c.inHot = false;
       });
       hot = [];
+      clearFx();
     }
     tables();
+    if ("boxJitter" in next || "boxSpan" in next) cells.forEach(function(c) {
+      if (c.box) shape(c);
+    });
     if (refont) loadFonts();
     if (rebuild) build();
     if (rebuild || refont || "tracking" in next || "wordSpacing" in next) measure();
@@ -1294,6 +1672,8 @@ function mount(root, options) {
     });
   }
   tables();
+  useEffect();
+  useLayout();
   renderer = canvasRenderer();
   root.insertBefore(renderer.el, sr);
   build();
@@ -1353,6 +1733,7 @@ export {
   LOOKALIKE as lookalike,
   mount,
   PALETTES as palettes,
+  register,
   SETS as sets,
   WORDS as words
 };
