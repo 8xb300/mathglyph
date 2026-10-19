@@ -177,6 +177,15 @@ async function demoChecks() {
       await hover();
       await page.mouse.move(2, 2, { steps: 2 });
     }, EFFECT_SETTLE_MS);
+    // The chosen card, and only it, shows as chosen. So does its switch in the bar, if it has one.
+    const chosen = await page.evaluate((kind) => ({
+      cards: [...document.querySelectorAll(`#gallery .card[data-${kind}][aria-pressed=true]`)].map((card) => card.dataset[kind]),
+      bar: [...document.querySelectorAll(`#bar-${kind} [aria-pressed=true]`)].map((button) => button.value),
+      inBar: [...document.querySelectorAll(`#bar-${kind} button`)].map((button) => button.value),
+    }), kind);
+    report(`the ${kind} "${name}" shows as chosen`,
+      chosen.cards.join() === name && chosen.bar.join() === (chosen.inBar.includes(name) ? name : ''),
+      `: cards ${chosen.cards.join() || 'none'}, bar ${chosen.bar.join() || 'none'}`);
   }
 
   await page.mouse.move(2, 2);

@@ -570,7 +570,8 @@ function addSegments(kind) {
 
 function showCards() {
   for (const kind of ['layout', 'effect']) {
-    for (const card of $(`${kind}s`).querySelectorAll(`[data-${kind}]`)) {
+    // The whole gallery: the cards of the "your own" group sit in their own list.
+    for (const card of $('gallery').querySelectorAll(`.card[data-${kind}]`)) {
       card.setAttribute('aria-pressed', String(card.dataset[kind] === nameOf(state[kind])));
     }
     for (const button of $(`bar-${kind}`).children) {
