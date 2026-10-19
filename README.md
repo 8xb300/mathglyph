@@ -49,7 +49,7 @@ mathglyph is not on npm yet. Load it from jsDelivr, or copy `dist/` into your pr
 ```html
 <h1 id="hero">Every proof starts with a good guess</h1>
 <script type="module">
-  import { mount } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/mathglyph.min.js';
+  import { mount } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/mathglyph.min.js';
   const lines = ['Every proof starts', 'with a *good* guess'];  // *stars* highlight a word
   mount(document.getElementById('hero'), { lines, palette: 'ice' });
 </script>
@@ -58,7 +58,7 @@ mathglyph is not on npm yet. Load it from jsDelivr, or copy `dist/` into your pr
 With a plain script tag, the same exports are on the global `MathGlyph`:
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/mathglyph.iife.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/mathglyph.iife.min.js"></script>
 <script>
   MathGlyph.mount(document.getElementById('hero'), { lines: ['Every proof starts', 'with a *good* guess'] });
 </script>
@@ -133,8 +133,8 @@ Put the plain text in the element, as in the first Quick start example. `mount` 
 `'breathe'` is built in. The others are [modules](#modules): import them and pass them to `register` first. v0.5.0 removed `'wave'`: a page that still asks for it gets `'breathe'` and one console warning. Give settings with the name:
 
 ```js
-import { mount, register } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/mathglyph.min.js';
-import { ripple } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/effects/ripple.min.js';
+import { mount, register } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/mathglyph.min.js';
+import { ripple } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/effects/ripple.min.js';
 
 register(ripple);
 const fx = mount(element, { effect: 'ripple' });               // the default settings
@@ -157,7 +157,7 @@ Distances are in em: 1 em is the font size. Each effect's `speed` is multiplied 
 Give `effect` a list, and the effects run together, in the order of the list:
 
 ```js
-import { lens } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/effects/lens.min.js';
+import { lens } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/effects/lens.min.js';
 
 register(ripple, lens);
 mount(element, { effect: ['ripple', { name: 'lens', strength: 0.5 }] });
@@ -345,9 +345,9 @@ The default, `null`, is Latin only. A letter with no look-alike in the picked sc
 The core, `mathglyph.min.js`, has the `'lines'` layout and the `'breathe'` effect. Each other layout and effect is a module of its own, which exports one object with the module's name. Import the ones you use, and pass them to `register` before `mount`:
 
 ```js
-import { mount, register } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/mathglyph.min.js';
-import { ring } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/layouts/ring.min.js';
-import { firework } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/effects/firework.min.js';
+import { mount, register } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/mathglyph.min.js';
+import { ring } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/layouts/ring.min.js';
+import { firework } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/effects/firework.min.js';
 
 register(ring, firework);
 mount(document.getElementById('hero'), { layout: 'ring', effect: 'firework' });
@@ -356,7 +356,7 @@ mount(document.getElementById('hero'), { layout: 'ring', effect: 'firework' });
 With a plain script tag, load the all-in-one build. It has every layout and effect registered, and the Greek, Cyrillic and CJK tables:
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/mathglyph.all.iife.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/mathglyph.all.iife.min.js"></script>
 <script>
   MathGlyph.mount(document.getElementById('hero'), { layout: 'ring', effect: 'firework' });
 </script>
@@ -371,22 +371,22 @@ Gzipped: zlib level 9, as `npm run build` prints.
 <!-- numbers: sizes -->
 | File | What it holds | Minified | Gzipped |
 |---|---|--:|--:|
-| [`mathglyph.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/mathglyph.min.js) | The core, as an ES module: `mount`, `register`, the tables, `'lines'` and `'breathe'`. | 30,814 B | 14,145 B |
-| [`mathglyph.iife.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/mathglyph.iife.min.js) | The core for a script tag, on the global `MathGlyph`, with the Greek, Cyrillic and CJK tables. | 32,999 B | 15,537 B |
-| [`mathglyph.all.iife.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/mathglyph.all.iife.min.js) | The script-tag build with every layout and effect registered. | 43,282 B | 19,970 B |
-| [`languages.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/languages.min.js) | The Greek, Cyrillic and CJK look-alike tables. | 1,762 B | 1,086 B |
-| [`layouts/columns.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/layouts/columns.min.js) | The `'columns'` layout. | 1,305 B | 700 B |
-| [`layouts/grid.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/layouts/grid.min.js) | The `'grid'` layout. | 1,920 B | 999 B |
-| [`layouts/ring.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/layouts/ring.min.js) | The `'ring'` layout. | 1,027 B | 544 B |
-| [`effects/ripple.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/effects/ripple.min.js) | The `'ripple'` effect. | 1,116 B | 714 B |
-| [`effects/firework.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/effects/firework.min.js) | The `'firework'` effect. | 1,378 B | 826 B |
-| [`effects/lens.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/effects/lens.min.js) | The `'lens'` effect. | 1,040 B | 648 B |
-| [`effects/cascade.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/effects/cascade.min.js) | The `'cascade'` effect. | 995 B | 611 B |
-| [`effects/shatter.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/effects/shatter.min.js) | The `'shatter'` effect. | 1,951 B | 1,170 B |
+| [`mathglyph.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/mathglyph.min.js) | The core, as an ES module: `mount`, `register`, the tables, `'lines'` and `'breathe'`. | 30,814 B | 14,145 B |
+| [`mathglyph.iife.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/mathglyph.iife.min.js) | The core for a script tag, on the global `MathGlyph`, with the Greek, Cyrillic and CJK tables. | 32,999 B | 15,537 B |
+| [`mathglyph.all.iife.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/mathglyph.all.iife.min.js) | The script-tag build with every layout and effect registered. | 43,282 B | 19,970 B |
+| [`languages.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/languages.min.js) | The Greek, Cyrillic and CJK look-alike tables. | 1,762 B | 1,086 B |
+| [`layouts/columns.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/layouts/columns.min.js) | The `'columns'` layout. | 1,305 B | 700 B |
+| [`layouts/grid.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/layouts/grid.min.js) | The `'grid'` layout. | 1,920 B | 999 B |
+| [`layouts/ring.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/layouts/ring.min.js) | The `'ring'` layout. | 1,027 B | 544 B |
+| [`effects/ripple.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/effects/ripple.min.js) | The `'ripple'` effect. | 1,116 B | 714 B |
+| [`effects/firework.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/effects/firework.min.js) | The `'firework'` effect. | 1,378 B | 826 B |
+| [`effects/lens.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/effects/lens.min.js) | The `'lens'` effect. | 1,040 B | 648 B |
+| [`effects/cascade.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/effects/cascade.min.js) | The `'cascade'` effect. | 995 B | 611 B |
+| [`effects/shatter.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/effects/shatter.min.js) | The `'shatter'` effect. | 1,951 B | 1,170 B |
 
 ### Package exports
 
-mathglyph is not on npm yet. To install it from GitHub, run `npm install github:8xb300/mathglyph#v0.6.0`. The package exports the core, the languages, and every module by name, with their types:
+mathglyph is not on npm yet. To install it from GitHub, run `npm install github:8xb300/mathglyph#v0.6.1`. The package exports the core, the languages, and every module by name, with their types:
 
 ```js
 import { mount, register } from 'mathglyph';
@@ -524,7 +524,7 @@ The module also exports its built-in tables:
 Use them to build on the defaults:
 
 ```js
-import { mount, sets, palettes } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/mathglyph.min.js';
+import { mount, sets, palettes } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/mathglyph.min.js';
 
 mount(element, {
   symbols: Object.keys(sets).filter((name) => name !== 'greek'),  // every group but Greek
@@ -579,6 +579,8 @@ To use other fonts, list them in `fonts`. Each entry is one of:
 - `{ family: 'IBM Plex Mono', url: '/fonts/plex-mono.woff2' }`: a font file, loaded with the FontFace API.
 - `{ family: 'IBM Plex Mono', src: 'url(/fonts/plex-mono-bold.woff2)', weight: '700' }`: a CSS `src` value plus any FontFace descriptors, also loaded with the FontFace API.
 
+Set `lang` on the element (for example `el.lang = 'zh-Hant-HK'`, `'ja'` or `'ko'`) when the text is CJK, so the browser picks the right glyph forms.
+
 Each font in `fonts` goes at the front of the `font` stack, unless `font` already names it. Then it stays where you put it.
 
 Widths are measured per glyph with the real font stack, and measured again when a font loads. So slots and labels stay right while fonts arrive.
@@ -597,17 +599,17 @@ The default stack already names 'Noto Sans Math', so it slots in after the monos
 
 ### Hong Kong type
 
-The demo shows Traditional Chinese in three styles seen all over Hong Kong. Pick one with the chips 路, 黑 and 宋 on the columns card, or in the font picker. Each is a self-hosted subset of 2.5 to 4 KB (see [docs/fonts](docs/fonts/README.md)):
+The demo shows Traditional Chinese in two styles seen all over Hong Kong. Pick one with the chips 黑 and 宋 on the columns card, or in the font picker. Each is a self-hosted subset of 2.5 to 4 KB (see [docs/fonts](docs/fonts/README.md)):
 
-- **Road-sign style (路):** [Dela Gothic One](https://github.com/syakuzen/DelaGothic) by artakana, SIL OFL 1.1. It stands in for Prison Gothic (監獄體), the lettering that inmates of Stanley Prison cut by hand for road signs from the 1970s to 1997. Its digital revival by the Road Research Society (道路研究社) is a commercial font, and no openly licensed version exists, so the demo does not use that name.
 - **Heiti (黑體, 黑):** [Chiron Hei HK](https://github.com/chiron-fonts/chiron-hei-hk) at weight 900 by the Chiron Hei HK Project Authors, from Adobe's Source Han Sans, SIL OFL 1.1. A sans with even strokes, in Hong Kong character forms.
 - **Songti (宋體, 宋):** [Noto Serif HK](https://github.com/notofonts/noto-cjk) at weight 900 by Adobe, for Google's Noto, SIL OFL 1.1. The Ming style: thin horizontals, thick verticals and small triangular serifs, as on MTR station signs.
+
+Prison Gothic (監獄體), the hand-cut lettering of old Hong Kong road signs, has no free version, so the demo does not offer it.
 
 The first view loads only the subsets. The full fonts are on the page too, as unicode-range slices of mostly 50 to 100 KB (at most about 120 KB), cut in the order of Google Fonts' slices for Noto Sans HK, so that common characters share a few slices. The demo adds a face's slices only when the hero shows that face with Chinese characters that the subset does not hold. Then the browser downloads only the slices with characters on screen:
 
 | Face | Slices | On disk | Demo text | A typed 17-character sentence |
 |---|---|---|---|---|
-| Dela Gothic One | 17 | 1.30 MB | 0 B | 5 slices, 412 KB, plus 21 KB of CSS |
 | Chiron Hei HK 900 | 107 | 7.48 MB | 0 B | 7 slices, 587 KB, plus 64 KB of CSS |
 | Noto Serif HK 900 | 54 | 4.59 MB | 0 B | 7 slices, 662 KB, plus 44 KB of CSS |
 
@@ -620,8 +622,8 @@ Lines are split into grapheme clusters with `Intl.Segmenter`, so any script work
 The built-in look-alike table covers Latin. Greek, Cyrillic and CJK tables ship as a separate module, `dist/languages.min.js` (about 1 KB gzipped), so pages that don't need them don't load them. Plug them in with `lookalikes`:
 
 ```js
-import { mount } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/mathglyph.min.js';
-import { greek, cyrillic } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/languages.min.js';
+import { mount } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/mathglyph.min.js';
+import { greek, cyrillic } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/languages.min.js';
 
 mount(element, {
   lines: ['каждый знак — *переменная*'],
@@ -640,9 +642,9 @@ Greek letters also get math-alphabet Greek (𝛂 𝜷 𝝅), with or without the
 Chinese, Japanese and Korean are sometimes written in vertical columns, and the `'columns'` layout is made for them. Keep the text short, give each column a few characters, and let `fit` choose a large font:
 
 ```js
-import { mount, register } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/mathglyph.min.js';
-import { columns } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/layouts/columns.min.js';
-import { cjk } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.0/dist/languages.min.js';
+import { mount, register } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/mathglyph.min.js';
+import { columns } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/layouts/columns.min.js';
+import { cjk } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.6.1/dist/languages.min.js';
 
 register(columns);
 mount(element, {
@@ -655,7 +657,7 @@ mount(element, {
 
 The first line is the rightmost column. The characters stay upright. A CJK slot keeps its full width when it swaps to a narrow symbol, so the columns do not shrink. The `cjk` table holds characters made of straight strokes and boxes: 一 → −, 二 → =, 三 → ≡, 十 → +, 口 → □, 田 → ⊞, 〇 → ∘ and a few more. A Hangul syllable swaps like its first consonant, so 아 and 오 can show ∘, and 마 can show □. Other characters swap to symbols. Put the anchor near the middle of its column: the column grows out from it. Set `lang` on the element (`zh-Hans`, `ja` or `ko`), so the browser picks the right font for Han characters.
 
-For the look of a sign, set the columns close together and use a heavy font. The demo uses `columnGap: 0.15`, the three [Hong Kong faces](#hong-kong-type) for Chinese, and Noto Serif JP and KR at weight 900 (SIL OFL 1.1) for Japanese and Korean, whose bold Ming strokes are close to the characters on Hong Kong MTR station signs. A CJK font is large, so the demo serves a subset of each with only the characters of its text, 2.5 to 4.5 KB each (see [docs/fonts](docs/fonts/README.md)), and passes it as `fonts: [{ family, url }]`.
+For the look of a sign, set the columns close together and use a heavy font. The demo uses `columnGap: 0.15`, the two [Hong Kong faces](#hong-kong-type) for Chinese, and Noto Serif JP and KR at weight 900 (SIL OFL 1.1) for Japanese and Korean, whose bold Ming strokes are close to the characters on Hong Kong MTR station signs. A CJK font is large, so the demo serves a subset of each with only the characters of its text, 2.5 to 4.5 KB each (see [docs/fonts](docs/fonts/README.md)), and passes it as `fonts: [{ family, url }]`.
 
 You can add your own tables:
 
@@ -703,7 +705,7 @@ What does not work:
 Hovering over 2,000 characters (25 lines of 80) for 5 seconds, with a synthetic pointer that crosses every line. Median of 3 runs on Linux x86_64, headless Chromium 156, software rendering. `bench/run.mjs` measures it.
 
 <!-- numbers: bench -->
-| | First version | DOM renderer | v0.3.0 | v0.4.0 | v0.6.0 |
+| | First version | DOM renderer | v0.3.0 | v0.4.0 | v0.6.1 |
 |---|---:|---:|---:|---:|---:|
 | Main-thread time per frame while hovering | 8.1 ms | 5.7 ms | 3.0 ms | 3.0 ms | **3.0 ms** |
 | Browser CPU while hovering (all processes) | 88% | 63% | 28% | 28% | **28%** |
@@ -716,9 +718,9 @@ Hovering over 2,000 characters (25 lines of 80) for 5 seconds, with a synthetic 
 - *DOM renderer*: this engine drawing into absolutely positioned spans moved with transforms. It ran 2.2× slower than canvas and added 0.8 KB, so it was dropped. It lives in commit `1f75b33` if you want to compare.
 - *v0.3.0*: the canvas renderer before layouts and effects. About 3 KB of its 10 KB were the symbol tables. It does more than the first version: fonts, languages, labels, pausing, springs and crossfades.
 - *v0.4.0*: the same canvas renderer, with layouts, effects and `scripts`. This table uses the defaults, `'lines'` and `'breathe'`.
-- *v0.6.0*: what ships. It adds stacked effects, custom layouts and the hooks for your code (about 0.9 KB gzipped). With the defaults, the frame does the same work as in v0.4.0.
+- *v0.6.1*: what ships. It adds stacked effects, custom layouts and the hooks for your code (about 0.9 KB gzipped). With the defaults, the frame does the same work as in v0.4.0.
 
-The same hover test with each effect, in the `'lines'` layout (v0.4.0, and the stacked row v0.6.0):
+The same hover test with each effect, in the `'lines'` layout (v0.4.0, and the stacked row v0.6.1):
 
 | Effect | Main-thread time per frame | Browser CPU | Frames over 20 ms |
 |---|--:|--:|--:|
@@ -730,7 +732,7 @@ The same hover test with each effect, in the `'lines'` layout (v0.4.0, and the s
 | `'shatter'` | 4.25 ms | 37% | 0 |
 | `['ripple', 'lens']`, stacked | 4.60 ms | 40% | 0 |
 
-The stacked row is from v0.6.0. In the same run, on the same machine, `'ripple'` alone took 3.22 ms and `'lens'` alone 3.91 ms. `node bench/run.mjs effects ripple lens ripple,lens` runs these three.
+The stacked row is from v0.6.1. In the same run, on the same machine, `'ripple'` alone took 3.22 ms and `'lens'` alone 3.91 ms. `node bench/run.mjs effects ripple lens ripple,lens` runs these three.
 
 To run the benchmark: `npm install && npm run build`, then `npm install --no-save playwright && npx playwright install chromium && node bench/run.mjs`. `node bench/run.mjs effects` runs the hover test once per effect. `node bench/plain.mjs` checks that the demo, and every layout with every effect, go back to plain text with `rest: 'plain'` and then stop.
 

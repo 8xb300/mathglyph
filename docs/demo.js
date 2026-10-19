@@ -18,22 +18,18 @@ const TABLES = { greek, cyrillic, cjk };
 // Always loaded: a small Noto Sans Math subset (OFL), hosted next to this page.
 const MATH_FONT = { family: 'Noto Sans Math', url: './fonts/noto-sans-math-subset.woff2' };
 
-// Three Hong Kong faces for Chinese text, all OFL: the columns card and the font picker offer them.
+// Two Hong Kong faces for Chinese text, both OFL: the columns card and the font picker offer them.
 // Each file holds only the characters of the card text and the hero's Traditional Chinese text
-// (see fonts/README.md), so it is 2.5 to 4 KB. No openly licensed Prison Gothic (監獄體, the hand-cut
-// road-sign lettering) exists, so Dela Gothic One, a heavy and blunt gothic, gives a road-sign look
-// under its own name.
+// (see fonts/README.md), so it is 2.5 to 4 KB.
 const HK_FONTS = {
-  road: { family: 'Dela Gothic One', url: './fonts/dela-gothic-one-hk.6cf63dac.woff2' },
   hei: { family: 'Chiron Hei HK Black', url: './fonts/chiron-hei-hk-900-hk.ff637b48.woff2' },
   sung: { family: 'Noto Serif HK Black', url: './fonts/noto-serif-hk-900-hk.d6d37bf6.woff2' },
 };
-const HK_NAMES = { road: 'road-sign style, Dela Gothic One', hei: 'Heiti 黑體, Chiron Hei HK', sung: 'Songti 宋體, Noto Serif HK' };
+const HK_NAMES = { hei: 'Heiti 黑體, Chiron Hei HK', sung: 'Songti 宋體, Noto Serif HK' };
 // The full faces, as unicode-range slices of mostly 50 to 100 KB (see fonts/README.md). A face's
 // stylesheet is added only when the hero shows the face with Chinese characters that its subset
 // does not hold. Then the browser downloads only the slices that hold characters on screen.
 const HK_FULL = {
-  road: { family: 'Dela Gothic One Full', css: './fonts/dela-gothic-one/dela-gothic-one.7fdbb7aa.css' },
   hei: { family: 'Chiron Hei HK Full', css: './fonts/chiron-hei-hk/chiron-hei-hk-900.2afd2089.css' },
   sung: { family: 'Noto Serif HK Full', css: './fonts/noto-serif-hk/noto-serif-hk-900.0b2550b0.css' },
 };
@@ -128,9 +124,8 @@ const GALLERY = {
       // The anchor word, "breath", stays still in the middle of its own column. A column is as tall
       // as its characters, or twice its longer side from the anchor: `maxSize` keeps the tallest
       // within the hero's 300 px box. The heavy faces stay legible at this size.
-      // The chips 路, 黑 and 宋 show the Chinese text in the three Hong Kong faces.
+      // The chips 黑 and 宋 show the Chinese text in the two Hong Kong faces.
       texts: {
-        road: { ...ZH_COLUMNS, name: `繁體中文, ${HK_NAMES.road}`, short: '路', font: HK_FONTS.road },
         hei: { ...ZH_COLUMNS, name: `繁體中文, ${HK_NAMES.hei}`, short: '黑', font: HK_FONTS.hei },
         sung: { ...ZH_COLUMNS, name: `繁體中文, ${HK_NAMES.sung}`, short: '宋', font: HK_FONTS.sung },
         ja: { lang: 'ja', name: '日本語', short: '日', lines: ['字は変数', '文は証明', '*呼吸*'], anchor: '呼吸', maxSize: 50, font: CJK_FONTS.ja },
@@ -498,6 +493,7 @@ function showControls(code) {
       showValue(input);
     }
   }
+  showConfig();
 }
 
 function addCard(kind, name, { about, lines = CARD_TEXT, texts, options, preview, custom, stack }) {
@@ -759,6 +755,7 @@ function showConfig() {
     (tableName ? `import { ${tableName} } from ${url('./languages.js')};\n` : '') + '\n' +
     (modules.length ? `MathGlyph.register(${modules.map(([, name]) => name).join(', ')});\n` : '') +
     "const el = document.getElementById('hero');\n" +
+    (hero.lang && hero.lang !== 'en' ? `el.lang = ${quote(hero.lang)};\n` : '') +
     `const fx = MathGlyph.mount(el, ${toJS(changed, '')});\n`.replace(/['"]__TABLE__['"]/, tableName);
 }
 showConfig();

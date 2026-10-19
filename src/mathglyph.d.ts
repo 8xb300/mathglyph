@@ -46,7 +46,7 @@ export interface Point {
 
 /**
  * One glyph, as an effect sees it. The engine owns every field except `fx`: read them, do not
- * write them. The anchor word is never given to an effect.
+ * write them. The engine never calls `glyph()` of an effect for the anchor word, but its glyphs are in `f.glyphs`.
  */
 export interface Glyph {
   /** Index in the whole text, from 0. */
@@ -271,13 +271,13 @@ export interface Options {
   labels?: number;
   labelFormat?: ((cell: LabelCell) => string) | null;
   symbols?: 'all' | Array<GroupName | string>;
-  sets?: Record<string, SymbolSet>;
+  sets?: Record<string, SymbolSet> | null;
   tokens?: boolean;
   symbolMix?: number;
   legible?: number;
-  lookalikes?: Record<string, string>;
+  lookalikes?: Record<string, string> | null;
   words?: number;
-  wordMap?: Record<string, string>;
+  wordMap?: Record<string, string> | null;
   motion?: 'hover' | 'always' | 'still';
   /** 'glyphs': glyphs at rest. 'plain': plain text at rest, glyphs only where the pointer touches. */
   rest?: 'glyphs' | 'plain';
