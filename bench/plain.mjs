@@ -218,8 +218,18 @@ async function heroChecks() {
       await page.locator('[data-layout="columns"]').click();
       await measure();
     }
+    // Every language of the language picker, in every layout. The height changes at once.
+    await page.evaluate(() => { document.getElementById('lang').closest('details').open = true; });
+    for (const button of await page.locator('#bar-layout button').all()) {
+      await button.click();
+      for (const lang of await page.locator('#lang option').evaluateAll((os) => os.map((o) => o.value))) {
+        await page.selectOption('#lang', lang);
+        await sleep(200);
+        sizes.push(await page.evaluate(() => [document.getElementById('hero').offsetHeight, document.querySelector('.bar').offsetTop]));
+      }
+    }
     const same = sizes.every(([h, top]) => h === sizes[0][0] && top === sizes[0][1]);
-    report(`hero at ${width} px: one height for every layout and language`, same, `: ${sizes.map(([h]) => h).join(', ')} px`);
+    report(`hero at ${width} px: one height for every layout and language`, same, `: ${[...new Set(sizes.map(([h]) => h))].join(', ')} px high, bar at ${[...new Set(sizes.map(([, top]) => top))].join(', ')} px`);
     await page.close();
   }
 }

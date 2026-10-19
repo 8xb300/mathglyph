@@ -595,7 +595,7 @@ The default stack already names 'Noto Sans Math', so it slots in after the monos
 
 ### Hong Kong type
 
-The demo shows Traditional Chinese in three styles seen all over Hong Kong. Pick one with the chips 路, 黑 and 宋 on the columns card, or in the font picker. Each is a self-hosted subset of 6 to 9 KB (see [docs/fonts](docs/fonts/README.md)):
+The demo shows Traditional Chinese in three styles seen all over Hong Kong. Pick one with the chips 路, 黑 and 宋 on the columns card, or in the font picker. Each is a self-hosted subset of 3 to 4 KB (see [docs/fonts](docs/fonts/README.md)):
 
 - **Road-sign style (路):** [Dela Gothic One](https://github.com/syakuzen/DelaGothic) by artakana, SIL OFL 1.1. It stands in for Prison Gothic (監獄體), the lettering that inmates of Stanley Prison cut by hand for road signs from the 1970s to 1997. Its digital revival by the Road Research Society (道路研究社) is a commercial font, and no openly licensed version exists, so the demo does not use that name.
 - **Heiti (黑體, 黑):** [Chiron Hei HK](https://github.com/chiron-fonts/chiron-hei-hk) at weight 900 by the Chiron Hei HK Project Authors, from Adobe's Source Han Sans, SIL OFL 1.1. A sans with even strokes, in Hong Kong character forms.
@@ -653,7 +653,7 @@ mount(element, {
 
 The first line is the rightmost column. The characters stay upright. A CJK slot keeps its full width when it swaps to a narrow symbol, so the columns do not shrink. The `cjk` table holds characters made of straight strokes and boxes: 一 → −, 二 → =, 三 → ≡, 十 → +, 口 → □, 田 → ⊞, 〇 → ∘ and a few more. A Hangul syllable swaps like its first consonant, so 아 and 오 can show ∘, and 마 can show □. Other characters swap to symbols. Put the anchor near the middle of its column: the column grows out from it. Set `lang` on the element (`zh-Hans`, `ja` or `ko`), so the browser picks the right font for Han characters.
 
-For the look of a sign, set the columns close together and use a heavy font. The demo uses `columnGap: 0.15` and Noto Serif HK, JP and KR at weight 900 (SIL OFL 1.1), whose bold Ming strokes are close to the characters on Hong Kong MTR station signs. For Chinese it also offers two other [Hong Kong styles](#hong-kong-type). A CJK font is large, so the demo serves a subset of each with only the characters of its text, about 5 KB each (see [docs/fonts](docs/fonts/README.md)), and passes it as `fonts: [{ family, url }]`.
+For the look of a sign, set the columns close together and use a heavy font. The demo uses `columnGap: 0.15` and Noto Serif HK, JP and KR at weight 900 (SIL OFL 1.1), whose bold Ming strokes are close to the characters on Hong Kong MTR station signs. For Chinese it also offers two other [Hong Kong styles](#hong-kong-type). A CJK font is large, so the demo serves a subset of each with only the characters of its text, 3 to 5 KB each (see [docs/fonts](docs/fonts/README.md)), and passes it as `fonts: [{ family, url }]`.
 
 You can add your own tables:
 

@@ -20,13 +20,13 @@ const MATH_FONT = { family: 'Noto Sans Math', url: './fonts/noto-sans-math-subse
 
 // Three Hong Kong faces for Chinese text, all OFL: the columns card and the font picker offer them.
 // Each file holds only the characters of the card text and the hero's Traditional Chinese text
-// (see fonts/README.md), so it is 6 to 9 KB. No openly licensed Prison Gothic (監獄體, the hand-cut
+// (see fonts/README.md), so it is 3 to 4 KB. No openly licensed Prison Gothic (監獄體, the hand-cut
 // road-sign lettering) exists, so Dela Gothic One, a heavy and blunt gothic, gives a road-sign look
 // under its own name.
 const HK_FONTS = {
-  road: { family: 'Dela Gothic One', url: './fonts/dela-gothic-one-hk.066d9d85.woff2' },
-  hei: { family: 'Chiron Hei HK Black', url: './fonts/chiron-hei-hk-900-hk.438186a6.woff2' },
-  sung: { family: 'Noto Serif HK Black', url: './fonts/noto-serif-hk-900-hk.75107d12.woff2' },
+  road: { family: 'Dela Gothic One', url: './fonts/dela-gothic-one-hk.6cf63dac.woff2' },
+  hei: { family: 'Chiron Hei HK Black', url: './fonts/chiron-hei-hk-900-hk.ff637b48.woff2' },
+  sung: { family: 'Noto Serif HK Black', url: './fonts/noto-serif-hk-900-hk.d6d37bf6.woff2' },
 };
 const HK_NAMES = { road: 'road-sign style, Dela Gothic One', hei: 'Heiti 黑體, Chiron Hei HK', sung: 'Songti 宋體, Noto Serif HK' };
 // The full faces, as unicode-range slices of about 50 to 100 KB (see fonts/README.md). A face's
@@ -37,12 +37,12 @@ const HK_FULL = {
   hei: { family: 'Chiron Hei HK Full', css: './fonts/chiron-hei-hk/chiron-hei-hk-900.2afd2089.css' },
   sung: { family: 'Noto Serif HK Full', css: './fonts/noto-serif-hk/noto-serif-hk-900.0b2550b0.css' },
 };
-const ZH_COLUMNS = { lang: 'zh-Hant', lines: ['一字一變量', '一句一證明', '符號*呼吸*著', '又歸於平淡'], anchor: '呼吸' };
+const ZH_COLUMNS = { lang: 'zh-Hant', lines: ['字是變量', '句是證明', '*呼吸*'], anchor: '呼吸', maxSize: 50 };
 
 // Heavy CJK fonts for the Japanese and Korean columns: Noto Serif JP and KR at weight 900 (OFL),
 // whose bold Ming strokes are close to the characters on Hong Kong MTR station signs.
 const CJK_FONTS = {
-  ja: { family: 'Noto Serif JP Black', url: './fonts/noto-serif-jp-900-ja.7a93619b.woff2' },
+  ja: { family: 'Noto Serif JP Black', url: './fonts/noto-serif-jp-900-ja.b368ac01.woff2' },
   ko: { family: 'Noto Serif KR Black', url: './fonts/noto-serif-kr-900-ko.5f54798b.woff2' },
 };
 
@@ -61,14 +61,11 @@ const LANGUAGES = {
     lines: ['every letter', 'a *variable*', 'every word', 'a small proof'],
     anchor: 'variable',
   },
+  // The other languages: two short lines with the meaning of the first two English lines, so that
+  // a language change keeps the text about as large in the hero.
   es: {
     name: 'Español',
-    lines: [
-      'cada letra es una *variable*',
-      'y cada palabra, una *prueba*',
-      'acércate y todo cambia,',
-      'entonces vuelve a su lugar',
-    ],
+    lines: ['cada letra,', 'una *variable*'],
     wordMap: {
       y: '∧', o: '∨', no: '¬', todo: '∀', todos: '∀', existe: '∃', hay: '∃',
       entonces: '⇒', porque: '∵', en: '∈', más: '+', menos: '−',
@@ -76,49 +73,39 @@ const LANGUAGES = {
   },
   el: {
     name: 'Ελληνικά',
-    lines: [
-      'κάθε γράμμα είναι μια *μεταβλητή*',
-      'και κάθε λέξη, μια *απόδειξη*',
-      'πλησίασε και όλα αλλάζουν,',
-      'άρα τίποτα δεν είναι απλό',
-    ],
+    lines: ['κάθε γράμμα,', 'μια *μεταβλητή*'],
     wordMap: { και: '∧', ή: '∨', κάθε: '∀', όλα: '∀', υπάρχει: '∃', άρα: '∴', επειδή: '∵', τίποτα: '∅' },
     lookalikes: 'greek',
   },
   ru: {
     name: 'Русский',
-    lines: [
-      'каждый знак — *переменная*',
-      'и каждое слово — *теорема*',
-      'подойди ближе, и все знаки оживут,',
-      'следовательно, текст не прост',
-    ],
+    lines: ['каждая буква —', '*переменная*'],
     wordMap: {
-      и: '∧', или: '∨', не: '¬', все: '∀', каждый: '∀', существует: '∃',
+      и: '∧', или: '∨', не: '¬', все: '∀', каждый: '∀', каждая: '∀', существует: '∃',
       следовательно: '∴', потому: '∵', в: '∈',
     },
     lookalikes: 'cyrillic',
   },
   ja: {
     name: '日本語',
-    lines: ['どの文字も*変数*になる', 'どの言葉も小さな*証明*', '近づくと記号が動きだし', 'やがて静かに文字へ戻る'],
+    lines: ['どの文字も', '*変数*になる'],
   },
   'zh-Hans': {
     name: '简体中文',
-    lines: ['每个字都是一个*变量*', '每句话都是一个*证明*', '靠近一点，符号就会变化', '然后慢慢变回文字'],
+    lines: ['每个字', '都是*变量*'],
   },
   'zh-Hant': {
     name: '繁體中文',
-    lines: ['每個字都是一個*變量*', '每句話都是一個*證明*', '靠近一點，符號就會變化', '然後慢慢變回文字'],
+    lines: ['每個字', '都是*變量*'],
   },
   ko: {
     name: '한국어',
-    lines: ['모든 글자는 *변수*이고', '모든 단어는 작은 *증명*이다', '가까이 다가가면 기호로 바뀌고', '곧 다시 글자로 돌아온다'],
+    lines: ['모든 글자는', '*변수*다'],
     wordMap: { 모든: '∀', 그리고: '∧', 또는: '∨' },
   },
   hi: {
     name: 'हिन्दी',
-    lines: ['हर अक्षर एक *चर* है', 'हर शब्द एक छोटा *प्रमाण* है', 'पास आओ तो चिह्न बदलते हैं', 'फिर अक्षर लौट आते हैं'],
+    lines: ['हर अक्षर', 'एक *चर*'],
     wordMap: { हर: '∀', और: '∧', या: '∨', फिर: '⇒', इसलिए: '∴', क्योंकि: '∵' },
   },
 };
@@ -137,19 +124,20 @@ const GALLERY = {
     columns: {
       module: columns,
       about: 'Vertical CJK text.',
-      // Short columns in a large, heavy font, set close together as the characters on a sign. The
-      // anchor word, "breath", stays still. At most 6 characters a column, with the anchor in the
-      // middle, so that every language fits the hero's box.
+      // Three short columns in a large, heavy font, set close together as the characters on a sign.
+      // The anchor word, "breath", stays still in the middle of its own column. A column is as tall
+      // as its characters, or twice its longer side from the anchor: `maxSize` keeps the tallest
+      // within the hero's 300 px box. The heavy faces stay legible at this size.
       // The chips 路, 黑 and 宋 show the Chinese text in the three Hong Kong faces.
       texts: {
         road: { ...ZH_COLUMNS, name: `繁體中文, ${HK_NAMES.road}`, short: '路', font: HK_FONTS.road },
         hei: { ...ZH_COLUMNS, name: `繁體中文, ${HK_NAMES.hei}`, short: '黑', font: HK_FONTS.hei },
         sung: { ...ZH_COLUMNS, name: `繁體中文, ${HK_NAMES.sung}`, short: '宋', font: HK_FONTS.sung },
-        ja: { lang: 'ja', name: '日本語', short: '日', lines: ['どの字も変数', '言葉は証明', '字は*呼吸*する', 'また字に戻る'], anchor: '呼吸', font: CJK_FONTS.ja },
-        ko: { lang: 'ko', name: '한국어', short: '한', lines: ['글자는 변수', '낱말은 증명', '늘 *호흡*하고', '다시 글자로'], anchor: '호흡', font: CJK_FONTS.ko },
+        ja: { lang: 'ja', name: '日本語', short: '日', lines: ['字は変数', '文は証明', '*呼吸*'], anchor: '呼吸', maxSize: 50, font: CJK_FONTS.ja },
+        ko: { lang: 'ko', name: '한국어', short: '한', lines: ['글은 변수', '말은 증명', '*호흡*'], anchor: '호흡', maxSize: 44, font: CJK_FONTS.ko },
       },
-      options: { layout: { name: 'columns', columnGap: 0.15 }, lookalikes: cjk, maxSize: 34 },
-      preview: { maxSize: 16, layout: { name: 'columns', columnGap: 0.15 } },
+      options: { layout: { name: 'columns', columnGap: 0.15 }, lookalikes: cjk },
+      preview: { maxSize: 20, layout: { name: 'columns', columnGap: 0.15 } },
     },
     grid: {
       module: grid,
@@ -221,8 +209,10 @@ let tableName = null;  // which entry of TABLES is in state.lookalikes
 // The hero's fonts: the ones the font picker chose, and the font of the layout card's text (the
 // columns card has its own CJK fonts).
 let pickedFonts = START.fonts;
+// The card's font is only for the language of the card's text.
 let cardFont = null;
-const heroFonts = () => withFull(cardFont ? [...pickedFonts, cardFont] : pickedFonts);
+let cardLang = null;
+const heroFonts = () => withFull(cardFont && hero.lang === cardLang ? [...pickedFonts, cardFont] : pickedFonts);
 
 // The Hong Kong faces whose full stylesheet is on the page. A full face goes just before its
 // subset in `fonts`. Until a slice arrives, the subset or the next font draws the character, at
@@ -340,14 +330,34 @@ $('lang').addEventListener('change', () => {
     wordMap: language.wordMap || {},
     lookalikes: tableName && TABLES[tableName],
     anchor: language.anchor || null,
+    fonts: heroFonts(),
+    maxSize: layoutMaxSize(),
   });
+  keepInBox();
 });
+
+const layoutMaxSize = () => GALLERY.layout[nameOf(state.layout)]?.options?.maxSize || BASE.maxSize;
+
+// A layout can grow taller than the hero's box with a text that is not its own, for example
+// columns of Latin letters. Make maxSize smaller until the text fits the box again, so that the
+// page under the hero does not move. The canvas height changes at once in update().
+function keepInBox() {
+  const box = parseFloat(getComputedStyle(hero).minHeight);
+  for (let i = 0; i < 8; i++) {
+    const height = hero.querySelector('canvas').offsetHeight;
+    if (!state.fit || height <= box) break;
+    set({ maxSize: Math.floor((state.maxSize * box) / height) });
+  }
+  $('maxSize').value = state.maxSize;
+  showValue($('maxSize'));
+}
 
 $('text-form').addEventListener('submit', (event) => {
   event.preventDefault();
   const lines = $('text').value.split('\n').map((line) => line.trimEnd()).filter(Boolean);
   if (!lines.length) return;
-  set({ lines });
+  set({ lines, maxSize: layoutMaxSize() });
+  keepInBox();
   useFullText();
 });
 
@@ -468,6 +478,7 @@ function setupOf(name) {
       maxSize: BASE.maxSize,
       fit: BASE.fit,
       ...options,
+      ...(text.maxSize && { maxSize: text.maxSize }),
       layout: valueOf('layout', name, layoutSettings),
     },
   };
@@ -637,6 +648,7 @@ function pick(kind, name) {
     const { code, font, tableName: table, patch } = setupOf(name);
     tableName = table;
     cardFont = font;
+    cardLang = code;
     set(patch);
     showControls(code);
     showCards();
