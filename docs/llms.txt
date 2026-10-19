@@ -1,6 +1,6 @@
 # mathglyph
 
-> mathglyph is a small, dependency-free text effect for websites. It draws monospace text on one canvas. Letters swap to math glyphs (𝕋 𝒢 ∃ ⊗) and move under the pointer. Version 0.6.1, MIT licence.
+> mathglyph is a small, dependency-free text effect for websites. It draws monospace text on one canvas. Letters swap to math glyphs (𝕋 𝒢 ∃ ⊗) and move under the pointer. Version 0.6.2, MIT licence.
 
 Use it for hero headlines, 404 pages and titles. The element keeps its plain text for screen readers, search engines and visitors without JavaScript. Install it from npm, or load it from jsDelivr.
 
