@@ -1,4 +1,4 @@
-/*! mathglyph v0.6.2 | MIT | github.com/8xb300/mathglyph */
+/*! mathglyph v0.7.1 | MIT | github.com/8xb300/mathglyph */
 
 // src/mathglyph.js
 var BASE = { bold: 119808, italic: 119860, script: 119964, fraktur: 120068, double: 120120 };

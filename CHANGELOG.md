@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.1
+
+The first published release with the `idle` option. The v0.7.0 tag was not published: the version line at the top of its built files still said 0.6.2, so the release check stopped it. No code changes from 0.7.0.
+
 ## 0.7.0
 
 - New option `idle`: motion while the pointer is away. `mode: 'shuffle'` swaps random letters every `every` seconds (default 1.5), a share `amount` of them each time (default 0.1). `mode: 'wander'` drifts a slow virtual pointer over the text and runs the effect. Off by default. The pointer takes over at once, and idle motion comes back 1.2 s after it leaves (with `rest: 'plain'`, after the revert). It stops off screen, in a hidden tab and with reduced motion.
