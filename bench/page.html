@@ -1,0 +1,127 @@
+<!doctype html>
+<!--
+  The page that bench/run.mjs and bench/record.mjs open. Query parameters:
+    impl    original | canvas. original is the first script (run.mjs writes it to
+            bench/results/original.js); canvas is dist/mathglyph.js.
+    mode    bench (default): 25 lines of about 80 characters, 1280 px wide, no intro.
+            preview: a short pitch with the default options, for the README preview.
+    chars   bench mode: characters of text (default 2000).
+    motion  bench mode: the motion option (default hover).
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>mathglyph bench</title>
+<style>
+  html, body { margin: 0; background: #0d0d11; }
+  #fx { width: 1280px; margin: 40px auto; }
+  #spacer { height: 4000px; }
+  body.preview { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+  body.preview #fx { width: 780px; margin: 0; padding: 18px 20px; }
+  body.preview #spacer { display: none; }
+</style>
+<script>
+  // Count each timer and animation-frame callback that runs (window.__wakeups), so that the idle
+  // and offscreen tests can see how often the engine wakes up. This must run before the engine
+  // loads. The bench's own loops use window.__raw, so they are not counted.
+  (() => {
+    const raw = {
+      requestAnimationFrame: window.requestAnimationFrame.bind(window),
+      setTimeout: window.setTimeout.bind(window),
+      setInterval: window.setInterval.bind(window),
+    };
+    function counted(callback) {
+      return function () {
+        window.__wakeups++;
+        return callback.apply(this, arguments);
+      };
+    }
+    window.__raw = raw;
+    window.__wakeups = 0;
+    window.requestAnimationFrame = (callback) => raw.requestAnimationFrame(counted(callback));
+    window.setTimeout = (callback, ...rest) => raw.setTimeout(counted(callback), ...rest);
+    window.setInterval = (callback, ...rest) => raw.setInterval(counted(callback), ...rest);
+  })();
+</script>
+</head>
+<body>
+<div id="fx"></div>
+<div id="spacer"></div>
+<script type="module">
+  const params = new URLSearchParams(location.search);
+  const impl = params.get('impl') || 'original';
+  const mode = params.get('mode') || 'bench';
+
+  // Fixed English text for bench mode, with *highlighted* words and words that have a symbol.
+  const SENTENCES = [
+    'Every proof starts with a question and ends with a small *square*.',
+    'Some sets are infinite, and some functions change at every point.',
+    'If the sum of all parts equals the whole, then nothing is lost in between.',
+    'Each line can hold a *symbol* or two and still read as plain text.',
+    'We move from words to signs and back, because both say the same thing.',
+    'Roughly half of the letters drift, and every slot grows to fit its glyph.',
+    'There exists a map from prose into notation, and it is *almost* onto.',
+    'Therefore the reader sees letters first and symbols second, not the reverse.',
+  ];
+
+  const PITCH = [
+    '*mathglyph* sets plain text in math type',
+    'letters drift to their symbol twins',
+    'and every slot grows to fit its glyph',
+    'point at a line to *scramble* it all',
+    'then it settles back into *words*',
+  ];
+
+  const visible = (text) => text.replaceAll('*', '').length;
+
+  // Exactly `chars` visible characters in lines of about 80. Lines are justified with extra
+  // spaces between words; the stars of highlighted words do not count.
+  function benchLines(chars) {
+    const words = SENTENCES.join(' ').split(' ');
+    const count = Math.max(1, Math.round(chars / 80));
+    const lines = [];
+    let next = 0;
+    for (let i = 0; i < count; i++) {
+      const width = Math.floor(chars / count) + (i < chars % count ? 1 : 0);
+      const line = [words[next++ % words.length]];
+      while (visible(line.join(' ') + ' ' + words[next % words.length]) <= width) {
+        line.push(words[next++ % words.length]);
+      }
+      const gaps = Math.max(1, line.length - 1);
+      for (let g = 0, missing = width - visible(line.join(' ')); missing > 0; g = (g + 1) % gaps, missing--) {
+        line[g] += ' ';
+      }
+      lines.push(line.join(' '));
+    }
+    return lines;
+  }
+
+  function loadOriginal() {
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'results/original.js';
+      script.onload = () => resolve(window.MathGlyph);
+      script.onerror = () => reject(new Error('bench/results/original.js did not load'));
+      document.head.append(script);
+    });
+  }
+
+  const options = mode === 'preview'
+    ? {
+        lines: PITCH,
+        fonts: [
+          { family: 'JetBrains Mono', url: 'https://cdn.jsdelivr.net/fontsource/fonts/jetbrains-mono@latest/latin-400-normal.woff2' },
+          { family: 'Noto Sans Math', url: '../fonts/noto-sans-math-subset.woff2' },
+        ],
+      }
+    : { lines: benchLines(Number(params.get('chars') || 2000)), intro: false, motion: params.get('motion') || 'hover' };
+  document.body.classList.toggle('preview', mode === 'preview');
+
+  window.__ready = (async () => {
+    const lib = impl === 'original' ? await loadOriginal() : await import('../dist/mathglyph.js');
+    window.__fx = lib.mount(document.getElementById('fx'), options);
+    await document.fonts.ready;
+  })();
+</script>
+</body>
+</html>
