@@ -273,9 +273,9 @@ button.primary { border-color: var(--accent); color: var(--accent); }
   text-overflow: ellipsis;
 }
 /* A card's language picker: small chips in the preview's top right corner, outside the card
-   button, as a button can not hold buttons. */
-.picker { position: absolute; top: 8px; right: 8px; display: grid; gap: 4px; }
-.picker button { width: 26px; height: 26px; padding: 0; border-radius: 7px; background: rgba(17, 17, 21, .85); font-size: .74rem; }
+   button, as a button can not hold buttons. Five chips fit in the preview's height on a phone. */
+.picker { position: absolute; top: 8px; right: 8px; display: grid; gap: 3px; }
+.picker button { width: 24px; height: 24px; padding: 0; border-radius: 7px; background: rgba(17, 17, 21, .85); font-size: .74rem; }
 .picker [aria-pressed=true] { border-color: var(--accent); color: var(--accent); }
 
 .settings { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); column-gap: 28px; }

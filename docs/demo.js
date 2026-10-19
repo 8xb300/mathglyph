@@ -18,11 +18,22 @@ const TABLES = { greek, cyrillic, cjk };
 // Always loaded: a small Noto Sans Math subset (OFL), hosted next to this page.
 const MATH_FONT = { family: 'Noto Sans Math', url: './fonts/noto-sans-math-subset.woff2' };
 
-// Heavy CJK fonts for the columns card: Noto Serif HK, JP and KR at weight 900 (OFL), whose bold
-// Ming strokes are close to the characters on Hong Kong MTR station signs. Each file holds only the
-// characters of its card text (see fonts/README.md), so it is about 5 KB.
+// Three Hong Kong faces for Chinese text, all OFL: the columns card and the font picker offer them.
+// Each file holds only the characters of the card text and the hero's Traditional Chinese text
+// (see fonts/README.md), so it is 6 to 9 KB. No openly licensed Prison Gothic (監獄體, the hand-cut
+// road-sign lettering) exists, so Dela Gothic One, a heavy and blunt gothic, gives a road-sign look
+// under its own name.
+const HK_FONTS = {
+  road: { family: 'Dela Gothic One', url: './fonts/dela-gothic-one-hk.066d9d85.woff2' },
+  hei: { family: 'Chiron Hei HK Black', url: './fonts/chiron-hei-hk-900-hk.438186a6.woff2' },
+  sung: { family: 'Noto Serif HK Black', url: './fonts/noto-serif-hk-900-hk.75107d12.woff2' },
+};
+const HK_NAMES = { road: 'road-sign style, Dela Gothic One', hei: 'Heiti 黑體, Chiron Hei HK', sung: 'Songti 宋體, Noto Serif HK' };
+const ZH_COLUMNS = { lang: 'zh-Hant', lines: ['一字一變量', '一句一證明', '符號*呼吸*著', '又歸於平淡'], anchor: '呼吸' };
+
+// Heavy CJK fonts for the Japanese and Korean columns: Noto Serif JP and KR at weight 900 (OFL),
+// whose bold Ming strokes are close to the characters on Hong Kong MTR station signs.
 const CJK_FONTS = {
-  'zh-Hant': { family: 'Noto Serif HK Black', url: './fonts/noto-serif-hk-900-zh.9b8c2b74.woff2' },
   ja: { family: 'Noto Serif JP Black', url: './fonts/noto-serif-jp-900-ja.7a93619b.woff2' },
   ko: { family: 'Noto Serif KR Black', url: './fonts/noto-serif-kr-900-ko.5f54798b.woff2' },
 };
@@ -121,10 +132,13 @@ const GALLERY = {
       // Short columns in a large, heavy font, set close together as the characters on a sign. The
       // anchor word, "breath", stays still. At most 6 characters a column, with the anchor in the
       // middle, so that every language fits the hero's box.
+      // The chips 路, 黑 and 宋 show the Chinese text in the three Hong Kong faces.
       texts: {
-        'zh-Hant': { name: '繁體中文', short: '中', lines: ['一字一變量', '一句一證明', '符號*呼吸*著', '又歸於平淡'], anchor: '呼吸', font: CJK_FONTS['zh-Hant'] },
-        ja: { name: '日本語', short: '日', lines: ['どの字も変数', '言葉は証明', '字は*呼吸*する', 'また字に戻る'], anchor: '呼吸', font: CJK_FONTS.ja },
-        ko: { name: '한국어', short: '한', lines: ['글자는 변수', '낱말은 증명', '늘 *호흡*하고', '다시 글자로'], anchor: '호흡', font: CJK_FONTS.ko },
+        road: { ...ZH_COLUMNS, name: `繁體中文, ${HK_NAMES.road}`, short: '路', font: HK_FONTS.road },
+        hei: { ...ZH_COLUMNS, name: `繁體中文, ${HK_NAMES.hei}`, short: '黑', font: HK_FONTS.hei },
+        sung: { ...ZH_COLUMNS, name: `繁體中文, ${HK_NAMES.sung}`, short: '宋', font: HK_FONTS.sung },
+        ja: { lang: 'ja', name: '日本語', short: '日', lines: ['どの字も変数', '言葉は証明', '字は*呼吸*する', 'また字に戻る'], anchor: '呼吸', font: CJK_FONTS.ja },
+        ko: { lang: 'ko', name: '한국어', short: '한', lines: ['글자는 변수', '낱말은 증명', '늘 *호흡*하고', '다시 글자로'], anchor: '호흡', font: CJK_FONTS.ko },
       },
       options: { layout: { name: 'columns', columnGap: 0.15 }, lookalikes: cjk, maxSize: 34 },
       preview: { maxSize: 16, layout: { name: 'columns', columnGap: 0.15 } },
@@ -388,9 +402,10 @@ const pickedText = {};
 // Everything a layout card shows, as an update for the hero: text, language, sizes and layout settings.
 function setupOf(name) {
   const card = GALLERY.layout[name];
-  const code = card.texts ? pickedText[name] || Object.keys(card.texts)[0] : 'en';
+  const key = card.texts && (pickedText[name] || Object.keys(card.texts)[0]);
+  const code = key ? card.texts[key].lang : 'en';
   const language = LANGUAGES[code];
-  const text = card.texts?.[code] || (card.lines ? { lines: card.lines } : language);
+  const text = key ? card.texts[key] : card.lines ? { lines: card.lines } : language;
   const { layout: { name: _, ...layoutSettings } = {}, ...options } = card.options || {};
   const lookalikes = options.lookalikes || (language.lookalikes && TABLES[language.lookalikes]) || null;
   return {
@@ -467,26 +482,26 @@ function addCard(kind, name, { about, lines = CARD_TEXT, texts, options, preview
   picker.className = 'picker';
   picker.setAttribute('role', 'group');
   picker.setAttribute('aria-label', `${name} text language`);
-  for (const [code, { name: label, short }] of Object.entries(texts)) {
+  for (const [key, { lang, name: label, short }] of Object.entries(texts)) {
     const chip = document.createElement('button');
     chip.type = 'button';
-    chip.lang = code;
+    chip.lang = lang;
     chip.textContent = short;
     chip.title = label;
     chip.setAttribute('aria-label', label);
-    chip.dataset.text = code;
-    chip.setAttribute('aria-pressed', String(texts[code] === text));
+    chip.dataset.text = key;
+    chip.setAttribute('aria-pressed', String(texts[key] === text));
     picker.append(chip);
   }
-  live.lang = Object.keys(texts)[0];
+  live.lang = text.lang;
   picker.addEventListener('click', (event) => {
     const chip = event.target.closest('[data-text]');
     if (!chip) return;
-    const code = chip.dataset.text;
+    const key = chip.dataset.text;
     for (const other of picker.children) other.setAttribute('aria-pressed', String(other === chip));
-    live.lang = code;
-    pickedText[name] = code;
-    mg.update({ lines: texts[code].lines, anchor: texts[code].anchor, fonts: texts[code].font ? [texts[code].font] : [] });
+    live.lang = texts[key].lang;
+    pickedText[name] = key;
+    mg.update({ lines: texts[key].lines, anchor: texts[key].anchor, fonts: texts[key].font ? [texts[key].font] : [] });
   });
   slot.append(picker);
 }
@@ -601,20 +616,29 @@ showSettings('effect');
 
 $('font').add(new Option('System monospace (default)', 'system'));
 FONTS.forEach((font, i) => $('font').add(new Option(font.family, String(i))));
+const hkGroup = document.createElement('optgroup');
+hkGroup.label = 'Chinese, Hong Kong';
+for (const face of Object.keys(HK_FONTS)) hkGroup.append(new Option(HK_NAMES[face], `hk-${face}`));
+$('font').append(hkGroup);
 $('font').add(new Option('Custom…', 'custom'));
+
+const pickedFont = (choice) => (choice.startsWith('hk-') ? HK_FONTS[choice.slice(3)] : FONTS[Number(choice)]);
 
 // source: a font from FONTS, { family, url } from the custom form, or a bare family name.
 function useFont(source) {
   const family = source && (typeof source === 'string' ? source : source.family);
   pickedFonts = source ? [MATH_FONT, source] : [MATH_FONT];
-  set({ fonts: heroFonts(), font: source ? `'${family}', 'Noto Sans Math', ui-monospace, monospace` : BASE.font });
+  // A Hong Kong face holds only Chinese characters. It goes first in the stack through `fonts`, also
+  // before the columns card's font, and the rest of the text keeps the default font.
+  const chinese = Object.values(HK_FONTS).includes(source);
+  set({ fonts: heroFonts(), font: source && !chinese ? `'${family}', 'Noto Sans Math', ui-monospace, monospace` : BASE.font });
 }
 
 $('font').addEventListener('change', () => {
   const choice = $('font').value;
   $('font-form').hidden = choice !== 'custom';
   if (choice === 'system') useFont(null);
-  else if (choice !== 'custom') useFont(FONTS[Number(choice)]);
+  else if (choice !== 'custom') useFont(pickedFont(choice));
 });
 
 $('font-form').addEventListener('submit', (event) => {
@@ -693,7 +717,7 @@ function showSummaries() {
   const font = $('font').value;
   $('sum-text').textContent = [
     LANGUAGES[$('lang').value]?.name || 'custom text',
-    font === 'system' ? 'system font' : font === 'custom' ? 'custom font' : FONTS[Number(font)].family,
+    font === 'system' ? 'system font' : font === 'custom' ? 'custom font' : pickedFont(font).family,
     state.anchor ? `anchor ${state.anchor}` : 'no anchor',
     `tracking ${fixed(state.tracking)}`,
   ].join(' · ');
