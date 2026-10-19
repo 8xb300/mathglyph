@@ -1,5 +1,16 @@
 import * as MathGlyph from './mathglyph.js';
 import { greek, cyrillic } from './languages.js';
+import { columns } from './layouts/columns.js';
+import { grid } from './layouts/grid.js';
+import { ring } from './layouts/ring.js';
+import { ripple } from './effects/ripple.js';
+import { firework } from './effects/firework.js';
+import { wave } from './effects/wave.js';
+import { lens } from './effects/lens.js';
+import { cascade } from './effects/cascade.js';
+import { shatter } from './effects/shatter.js';
+
+MathGlyph.register(columns, grid, ring, ripple, firework, wave, lens, cascade, shatter);
 
 // Look-alike tables for scripts beyond Latin, passed as `lookalikes`.
 const TABLES = { greek, cyrillic };
@@ -85,12 +96,60 @@ const LANGUAGES = {
   },
 };
 
+// The gallery: a card per layout and per effect. 'lines' and 'breathe' are built in; the others are
+// the modules registered above. A card shows CARD_TEXT, or its own lines that fill its shape.
+const CARD_TEXT = ['every letter is', 'a small *variable*'];
+const GALLERY = {
+  layout: {
+    lines: { about: 'Centred lines. The default.' },
+    columns: {
+      module: columns,
+      about: 'Each line is a column. Slots grow along it, so the columns breathe up and down.',
+      lines: ['math', 'is a', 'small', '*poem*'],
+    },
+    grid: {
+      module: grid,
+      about: 'Rows and aligned columns. A wide glyph pushes its column and its row apart.',
+      lines: ['every', 'glyph', '*moves*'],
+    },
+    ring: {
+      module: ring,
+      about: 'The text runs around a circle that grows outward as glyphs widen.',
+      lines: ['every letter', 'goes *round*'],
+    },
+  },
+  effect: {
+    breathe: { about: 'Glyphs near the pointer scramble, and their slots widen. The default.' },
+    ripple: { module: ripple, about: 'Rings run out from the pointer. Glyphs swap and pulse as a ring passes.' },
+    firework: { module: firework, about: 'Glyphs burst out with coloured sparks, then spring back.' },
+    wave: { module: wave, about: 'Letters bob in a soft wave that runs along the text.' },
+    lens: { module: lens, about: 'A magnifier follows the pointer. Letters under it grow.' },
+    cascade: { module: cascade, about: 'Letters drop into their slots, column by column, like rain.' },
+    shatter: { module: shatter, about: 'Letters break into dots that fly back, often as a new glyph.' },
+  },
+};
+
+// Slider ranges for the layout and effect settings: [min, max, step]. Distances are in em.
+const SPEED = [0.25, 3, 0.05];
+const RANGES = {
+  columns: { spacing: [1, 4, 0.1] },
+  ring: { gap: [0, 4, 0.1] },
+  ripple: { speed: SPEED, radius: [1, 16, 0.5], gap: [0.5, 6, 0.1], pulse: [0, 1.5, 0.05] },
+  firework: { speed: SPEED, radius: [0.5, 6, 0.1], power: [0, 3, 0.05], spin: [0, 3, 0.05], sparks: [0, 8, 1] },
+  wave: { speed: SPEED, radius: [1, 12, 0.5], height: [0, 1, 0.01], length: [1, 12, 0.5], swap: [0, 1, 0.05] },
+  lens: { speed: SPEED, radius: [2, 14, 0.5], zoom: [1, 3, 0.05] },
+  cascade: { speed: SPEED, radius: [0.5, 8, 0.1], fall: [0, 3, 0.1] },
+  shatter: { speed: SPEED, radius: [0.5, 5, 0.1], scatter: [0, 0.6, 0.02], dots: [2, 32, 1] },
+};
+
 // The options the page can change, in the order "Your config" lists them.
 const SHOWN = [
-  'lines', 'fonts', 'font', 'wordMap', 'lookalikes', 'palette', 'substitute', 'color', 'box', 'boxStyle', 'labels',
-  'symbols', 'tokens', 'symbolMix', 'legible', 'words', 'motion', 'rest', 'revert', 'anchor', 'tracking',
-  'wordSpacing', 'intro', 'speed', 'hoverRadius', 'expand', 'fit', 'maxSize',
+  'lines', 'layout', 'effect', 'scripts', 'fonts', 'font', 'wordMap', 'lookalikes', 'palette', 'substitute', 'color',
+  'box', 'boxStyle', 'boxJitter', 'boxSpan', 'labels', 'symbols', 'tokens', 'symbolMix', 'legible', 'words', 'motion',
+  'rest', 'revert', 'anchor', 'tracking', 'wordSpacing', 'intro', 'speed', 'hoverRadius', 'expand', 'fit', 'maxSize',
 ];
+// The options the gallery cards take from the hero.
+const SHARED = ['rest', 'palette', 'scripts'];
 
 const $ = (id) => document.getElementById(id);
 const hero = $('hero');
@@ -102,10 +161,13 @@ const BASE = { ...MathGlyph.defaults, wordMap: {} };
 const state = { ...BASE, lines: LANGUAGES.en.lines, fonts: [MATH_FONT], rest: 'plain', anchor: LANGUAGES.en.anchor };
 let tableName = null;  // which entry of TABLES is in state.lookalikes
 const fx = MathGlyph.mount(hero, { lines: state.lines, fonts: state.fonts, rest: state.rest, anchor: state.anchor });
+const cards = [];  // the live instances in the gallery
 
 function set(patch) {
   Object.assign(state, patch);
   fx.update(patch);
+  const shared = Object.fromEntries(Object.entries(patch).filter(([key]) => SHARED.includes(key)));
+  if (Object.keys(shared).length) for (const card of cards) card.update(shared);
   showConfig();
 }
 
@@ -226,6 +288,145 @@ $('groups').addEventListener('click', (event) => {
 });
 showChips();
 
+// ---- scripts ----
+
+// null is Latin only. Un-picking the last script goes back to it.
+const SCRIPTS = ['latin', 'greek', 'cyrillic'];
+
+function showScripts() {
+  const on = state.scripts || ['latin'];
+  for (const chip of $('scripts').children) chip.setAttribute('aria-pressed', String(on.includes(chip.dataset.script)));
+}
+
+$('scripts').addEventListener('click', (event) => {
+  const chip = event.target.closest('[data-script]');
+  if (!chip) return;
+  const script = chip.dataset.script;
+  const on = state.scripts || ['latin'];
+  const next = on.includes(script) ? on.filter((s) => s !== script) : [...on, script];
+  const picked = SCRIPTS.filter((s) => next.includes(s));
+  set({ scripts: picked.length && picked.join() !== 'latin' ? picked : null });
+  showScripts();
+});
+showScripts();
+
+// ---- gallery: layouts and effects ----
+
+// state.layout and state.effect are a name, or { name, ...settings } with the settings that differ
+// from the module's defaults.
+const nameOf = (value) => (typeof value === 'string' ? value : value.name);
+const defaultsOf = (kind, name) => GALLERY[kind][name].module?.defaults || {};
+
+function settingsOf(kind) {
+  const { name, ...settings } = typeof state[kind] === 'string' ? { name: state[kind] } : state[kind];
+  return { ...defaultsOf(kind, name), ...settings };
+}
+
+function choose(kind, name, settings = {}) {
+  const defaults = defaultsOf(kind, name);
+  const changed = Object.fromEntries(Object.entries(settings).filter(([key, value]) => value !== defaults[key]));
+  set({ [kind]: Object.keys(changed).length ? { name, ...changed } : name });
+}
+
+function addCard(kind, name, { about, lines = CARD_TEXT }) {
+  const card = document.createElement('button');
+  card.type = 'button';
+  card.className = 'card';
+  card.dataset[kind] = name;
+  const live = document.createElement('span');
+  live.className = 'live';
+  live.setAttribute('aria-hidden', 'true');
+  const title = document.createElement('span');
+  title.className = 'name';
+  title.textContent = name;
+  const caption = document.createElement('span');
+  caption.className = 'about';
+  caption.textContent = about;
+  card.append(live, title, caption);
+  $(`${kind}s`).append(card);
+  const shared = Object.fromEntries(SHARED.map((key) => [key, state[key]]));
+  cards.push(MathGlyph.mount(live, {
+    ...shared,
+    lines,
+    [kind]: name,
+    intro: false,
+    maxSize: 18,
+  }));
+}
+
+function showCards() {
+  for (const kind of ['layout', 'effect']) {
+    for (const card of $(`${kind}s`).children) {
+      card.setAttribute('aria-pressed', String(card.dataset[kind] === nameOf(state[kind])));
+    }
+  }
+}
+
+// A slider for each number among the defaults, a checkbox for each boolean.
+function showSettings(kind) {
+  const box = $(`${kind}-settings`);
+  const name = nameOf(state[kind]);
+  const defaults = defaultsOf(kind, name);
+  const settings = settingsOf(kind);
+  const fields = [];
+  for (const [key, value] of Object.entries(defaults)) {
+    const id = `${kind}-${key}`;
+    const field = document.createElement('div');
+    const label = document.createElement('label');
+    label.htmlFor = id;
+    label.textContent = key;
+    const input = document.createElement('input');
+    input.id = id;
+    if (typeof value === 'boolean') {
+      field.className = 'check';
+      input.type = 'checkbox';
+      input.checked = settings[key];
+      input.addEventListener('change', () => choose(kind, name, { ...settingsOf(kind), [key]: input.checked }));
+      field.append(input, label);
+    } else if (typeof value === 'number') {
+      field.className = 'field';
+      const output = document.createElement('output');
+      output.setAttribute('for', id);
+      const [min, max, step] = RANGES[name]?.[key] || [0, value * 2 || 1, 0.01];
+      Object.assign(input, { type: 'range', min, max, step, value: settings[key] });
+      input.addEventListener('input', () => {
+        showValue(input);
+        choose(kind, name, { ...settingsOf(kind), [key]: Number(input.value) });
+      });
+      field.append(label, output, input);
+    } else {
+      continue;
+    }
+    fields.push(field);
+  }
+  const legend = document.createElement('legend');
+  legend.textContent = `${kind}: ${name}`;
+  box.replaceChildren(legend, ...fields);
+  for (const input of box.querySelectorAll('input[type=range]')) showValue(input);
+  box.hidden = !fields.length;
+}
+
+for (const kind of ['layout', 'effect']) {
+  for (const [name, card] of Object.entries(GALLERY[kind])) addCard(kind, name, card);
+}
+
+$('gallery').addEventListener('click', (event) => {
+  const card = event.target.closest('[data-layout], [data-effect]');
+  if (!card) return;
+  const kind = card.dataset.layout ? 'layout' : 'effect';
+  const name = card.dataset[kind];
+  if (name !== nameOf(state[kind])) {
+    choose(kind, name);
+    showCards();
+    showSettings(kind);
+  }
+  // The gallery is far below the hero: bring the hero into view, with the settings under it.
+  hero.scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+});
+showCards();
+showSettings('layout');
+showSettings('effect');
+
 // ---- font picker ----
 
 $('font').add(new Option('System monospace (default)', 'system'));
@@ -283,10 +484,14 @@ function showConfig() {
     if (JSON.stringify(state[key]) !== JSON.stringify(BASE[key])) changed[key] = state[key];
   }
   if (changed.lookalikes) changed.lookalikes = '__TABLE__';
+  // The layout and effect modules the config needs: they are imported and registered.
+  const modules = ['layout', 'effect'].map((kind) => [kind, nameOf(state[kind])]).filter(([kind, name]) => GALLERY[kind][name].module);
   $('copy-status').textContent = '';
   $('config').textContent =
     "import * as MathGlyph from './mathglyph.js';\n" +
+    modules.map(([kind, name]) => `import { ${name} } from './${kind}s/${name}.js';\n`).join('') +
     (tableName ? `import { ${tableName} } from './languages.js';\n` : '') + '\n' +
+    (modules.length ? `MathGlyph.register(${modules.map(([, name]) => name).join(', ')});\n` : '') +
     `const fx = MathGlyph.mount(document.getElementById('hero'), ${toJS(changed, '')});\n`.replace(/['"]__TABLE__['"]/, tableName);
 }
 showConfig();

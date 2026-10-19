@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>mathglyph · a text effect with a math accent</title>
-  <meta name="description" content="mathglyph is a small JavaScript text effect: centered monospace lines where letters swap to math alphabets, Greek look-alikes and operators, then settle. Live demo with every option.">
+  <meta name="description" content="mathglyph is a small JavaScript text effect: monospace text where letters swap to math alphabets, Greek look-alikes and operators, then settle. Live demo with four layouts, seven hover effects and every option.">
   <meta name="theme-color" content="#09090b">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2309090b'/%3E%3Cpath d='M9 7l7 18 7-18M11.7 14h8.6' fill='none' stroke='%23a98bff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="./demo.css">
@@ -24,7 +24,7 @@
     <section class="hero" aria-label="Live demo">
       <div id="hero"></div>
       <noscript><p class="hint">This demo needs JavaScript.</p></noscript>
-      <p class="hint">Point at the text, or drag across it, to wake the symbols. Move away and it goes back to plain.</p>
+      <p class="hint">Point at the text, or drag across it, to wake the symbols. Move away and it goes back to plain. <a href="#gallery">Try a layout or an effect</a>.</p>
     </section>
 
     <section class="panel" aria-labelledby="options-title">
@@ -37,6 +37,9 @@
       </div>
 
       <div class="grid">
+        <fieldset class="wide settings" id="layout-settings" hidden></fieldset>
+        <fieldset class="wide settings" id="effect-settings" hidden></fieldset>
+
         <fieldset>
           <legend>Text and font</legend>
           <div class="field">
@@ -101,6 +104,15 @@
             <small id="legible-d">How often a swap looks like its letter (∃ for E).</small>
           </div>
           <div class="field">
+            <span class="label" id="scripts-l">scripts</span>
+            <div class="chips" id="scripts" role="group" aria-labelledby="scripts-l" aria-describedby="scripts-d">
+              <button type="button" class="chip" data-script="latin">Latin <span class="sample" aria-hidden="true">𝔸∃ℝ</span></button>
+              <button type="button" class="chip" data-script="greek">Greek <span class="sample" aria-hidden="true">ΣΠα</span></button>
+              <button type="button" class="chip" data-script="cyrillic">Cyrillic <span class="sample" aria-hidden="true">ЯДж</span></button>
+            </div>
+            <small id="scripts-d">Swaps of Latin letters take look-alikes from these scripts. Latin: math alphabets and symbols.</small>
+          </div>
+          <div class="field">
             <label for="symbolMix">symbolMix</label>
             <output for="symbolMix"></output>
             <input type="range" id="symbolMix" data-opt="symbolMix" min="0" max="1" step="0.01" aria-describedby="symbolMix-d">
@@ -152,6 +164,18 @@
             <small id="boxStyle-d">detect: thin bounding box with a label. soft: tinted box.</small>
           </div>
           <div class="field">
+            <label for="boxJitter">boxJitter</label>
+            <output for="boxJitter"></output>
+            <input type="range" id="boxJitter" data-opt="boxJitter" min="0" max="1" step="0.01" aria-describedby="boxJitter-d">
+            <small id="boxJitter-d">How much the padding and position of each box vary, like detections from a vision model. 0: uniform boxes.</small>
+          </div>
+          <div class="field">
+            <label for="boxSpan">boxSpan</label>
+            <output for="boxSpan"></output>
+            <input type="range" id="boxSpan" data-opt="boxSpan" min="1" max="4" step="1" aria-describedby="boxSpan-d">
+            <small id="boxSpan-d">The most neighbouring glyphs one box covers, within a word. Boxes may overlap. 1: one glyph per box.</small>
+          </div>
+          <div class="field">
             <label for="labels">labels</label>
             <output for="labels"></output>
             <input type="range" id="labels" data-opt="labels" min="0" max="1" step="0.01" aria-describedby="labels-d">
@@ -168,7 +192,7 @@
               <option value="always">always</option>
               <option value="still">still</option>
             </select>
-            <small id="motion-d">hover: moves near the pointer. always: adds a slow reshuffle. still: no animation.</small>
+            <small id="motion-d">When the effect runs. hover: near the pointer. always: also with a wandering point, and a slow reshuffle. still: no animation.</small>
           </div>
           <div class="check">
             <input type="checkbox" id="rest-plain" aria-describedby="rest-d">
@@ -225,6 +249,17 @@
           </div>
         </fieldset>
       </div>
+    </section>
+
+    <section class="panel" id="gallery" aria-labelledby="gallery-title">
+      <div class="panel-head">
+        <h2 id="gallery-title">Layouts and effects</h2>
+        <p class="note">Point at a card to see it move. Click it to use it on the text at the top.</p>
+      </div>
+      <h3 class="sub" id="layouts-title">layout</h3>
+      <div class="cards" id="layouts" role="group" aria-labelledby="layouts-title"></div>
+      <h3 class="sub" id="effects-title">effect</h3>
+      <div class="cards" id="effects" role="group" aria-labelledby="effects-title"></div>
     </section>
   </main>
 
