@@ -8,6 +8,11 @@
     chars   bench mode: characters of text (default 2000).
     motion  bench mode: the motion option (default hover).
     rest    the rest option (default glyphs).
+    intro   0: no intro.
+    options JSON of more options, for example {"boxJitter":1,"boxSpan":4}.
+    layout  a layout name; its module loads and is registered (default lines, built in).
+    effect  an effect name; its module loads and is registered (default breathe, built in).
+    src     1: load the engine and modules from src/ instead of dist/.
 -->
 <html lang="en">
 <head>
@@ -118,10 +123,23 @@
       }
     : { lines: benchLines(Number(params.get('chars') || 2000)), intro: false, motion: params.get('motion') || 'hover' };
   if (params.get('rest')) options.rest = params.get('rest');
+  if (params.get('intro') === '0') options.intro = false;
+  Object.assign(options, JSON.parse(params.get('options') || '{}'));
   document.body.classList.toggle('preview', mode === 'preview');
 
+  // A module of the engine: src/<kind>/<name>.js, or its build in dist/.
+  const fromSrc = params.get('src') === '1';
+  const load = (kind, name) => import(fromSrc ? `../src/${kind}/${name}.js` : `../dist/${kind}/${name}.min.js`);
+
   window.__ready = (async () => {
-    const lib = impl === 'original' ? await loadOriginal() : await import('../dist/mathglyph.js');
+    const lib = impl === 'original' ? await loadOriginal()
+      : await import(fromSrc ? '../src/mathglyph.js' : '../dist/mathglyph.js');
+    for (const [kind, builtIn] of [['layout', 'lines'], ['effect', 'breathe']]) {
+      const name = params.get(kind);
+      if (!name) continue;
+      if (name !== builtIn) lib.register((await load(`${kind}s`, name))[name]);
+      options[kind] = name;
+    }
     window.__fx = lib.mount(document.getElementById('fx'), options);
     await document.fonts.ready;
   })();

@@ -1,15 +1,21 @@
-// Checks that the demo with rest: 'plain' and revert: 0 always goes back to plain text: after a
-// change in the options panel, after the pointer leaves the text or the window, after the window
-// loses focus, and after the page is hidden. Then it checks that the idle page draws no frames.
+// Checks that the text always goes back to plain with rest: 'plain' and revert: 0, and that the
+// idle page draws no frames.
 //
-//   node bench/plain.mjs
+// The demo: after a change in the options panel, after a click in the gallery, after the pointer
+// leaves the text or the window, after the window loses focus, and after the page is hidden.
+// Every layout with every effect, on the bench page: the pointer crosses the text and leaves, the
+// text is plain again, and then no frames run. With reduced motion the pointer changes nothing.
+//
+//   node bench/plain.mjs [demo | matrix [layout]]
 //
 // Needs playwright (with its Chromium) where require() finds it: a node_modules folder or NODE_PATH.
-// Run npm run build first: the demo loads docs/mathglyph.js. Exits 1 if a check fails.
+// Run npm run build first: the pages load docs/ and dist/. Exits 1 if a check fails.
 
+import fs from 'node:fs';
 import { createRequire } from 'node:module';
+import path from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
-import { serveRepo } from './run.mjs';
+import { root, serveRepo } from './run.mjs';
 
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
@@ -17,11 +23,29 @@ const { chromium } = require('playwright');
 const SETTLE_MS = 1500;
 const INTRO_MS = 2500;  // the intro takes up to about 1.8 s
 const IDLE_MS = 2000;
+// An effect eases out in about 1 s after the leave, then the revert wave takes about 0.7 s.
+const EFFECT_SETTLE_MS = 2500;
 
+// The built-in layout and effect, and every module in dist/.
+function modules(kind, builtIn) {
+  const dir = path.join(root, 'dist', kind);
+  const built = fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => f.endsWith('.min.js')) : [];
+  return [builtIn, ...built.map((f) => f.slice(0, -'.min.js'.length)).sort()];
+}
+const LAYOUTS = modules('layouts', 'lines').filter((name) => !process.argv[3] || name === process.argv[3]);
+const EFFECTS = modules('effects', 'breathe');
+
+const only = process.argv[2];
 const server = await serveRepo();
+const base = `http://127.0.0.1:${server.address().port}`;
 const browser = await chromium.launch();
 const failures = [];
-try {
+function report(name, ok, detail = '') {
+  if (!ok) failures.push(name);
+  console.log(`${ok ? 'ok  ' : 'FAIL'} ${name}${detail}`);
+}
+
+async function demoChecks() {
   const page = await browser.newPage({ viewport: { width: 1400, height: 1000 } });
   // Counts the animation frames the page asks for.
   await page.addInitScript(() => {
@@ -29,7 +53,7 @@ try {
     const raf = window.requestAnimationFrame.bind(window);
     window.requestAnimationFrame = (f) => { window.__frames++; return raf(f); };
   });
-  await page.goto(`http://127.0.0.1:${server.address().port}/docs/index.html`);
+  await page.goto(`${base}/docs/index.html`);
   await page.waitForSelector('#hero canvas');
   await page.evaluate(() => document.fonts.ready);
   await sleep(3000);  // the intro
@@ -69,12 +93,10 @@ try {
     await sleep(wait);
     const got = await pixels();
     const plain = await plainPixels();
-    const ok = got === plain;
-    if (!ok) failures.push(name);
-    console.log(`${ok ? 'ok  ' : 'FAIL'} ${name}`);
+    report(name, got === plain);
   }
 
-  const sliders = await page.locator('input[type=range]').evaluateAll((els) => els.map((e) => e.id));
+  const sliders = await page.locator('input[type=range]').evaluateAll((els) => els.filter((e) => e.offsetParent).map((e) => e.id));
   for (const id of sliders) {
     await check(`hover, then drag the "${id}" slider`, async () => {
       await hover();
@@ -125,13 +147,85 @@ try {
     await setHidden(false);
   });
 
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height + 150);
+  // The gallery: each layout and effect, applied to the hero.
+  for (const item of await page.locator('[data-layout], [data-effect]').all()) {
+    const name = (await item.getAttribute('data-layout')) ?? (await item.getAttribute('data-effect'));
+    const kind = (await item.getAttribute('data-layout')) ? 'layout' : 'effect';
+    await check(`click the ${kind} "${name}" in the gallery, hover, then leave`, async () => {
+      await item.click();
+      await sleep(SETTLE_MS);
+      Object.assign(box, await canvas.boundingBox());
+      await hover();
+      await page.mouse.move(2, 2, { steps: 2 });
+    }, EFFECT_SETTLE_MS);
+  }
+
+  await page.mouse.move(2, 2);
   await sleep(SETTLE_MS);
   const before = await page.evaluate(() => window.__frames);
   await sleep(IDLE_MS);
   const frames = (await page.evaluate(() => window.__frames)) - before;
-  if (frames) failures.push('idle');
-  console.log(`${frames ? 'FAIL' : 'ok  '} idle for ${IDLE_MS / 1000} s: ${frames} frames`);
+  report(`demo idle for ${IDLE_MS / 1000} s`, !frames, `: ${frames} frames`);
+  await page.close();
+}
+
+// One layout with one effect on the bench page, with the README text and its anchor: the real mouse
+// crosses every line and leaves, then the text must be plain again and no timer or frame may run.
+// With reduced motion the pointer must change nothing at all.
+async function combo(context, layout, effect, reduced, options = '') {
+  const page = await context.newPage();
+  if (reduced) await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto(`${base}/bench/page.html?impl=canvas&mode=preview&rest=plain&intro=0&layout=${layout}&effect=${effect}` +
+    (options && `&options=${encodeURIComponent(options)}`));
+  await page.evaluate(() => window.__ready);
+  await sleep(600);
+  const canvas = page.locator('#fx canvas');
+  const pixels = () => canvas.evaluate((c) => c.toDataURL());
+  const plain = await pixels();
+  const box = await canvas.boundingBox();
+  // Something must change while the pointer crosses the text: across each row, then down each
+  // column, as columns of vertical text are narrow. The middle of a ring is empty, so look after
+  // each pass, not after the pointer stops.
+  const passes = 5;
+  let moved = false;
+  for (const across of [true, false]) {
+    for (let r = 0; r < passes; r++) {
+      const at = (r + 0.5) / passes;
+      const [x0, y0, x1, y1] = across ? [0.05, at, 0.95, at] : [at, 0.05, at, 0.95];
+      await page.mouse.move(box.x + box.width * x0, box.y + box.height * y0);
+      await page.mouse.move(box.x + box.width * x1, box.y + box.height * y1, { steps: 16 });
+      moved ||= (await pixels()) !== plain;
+    }
+  }
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 6 });
+  await sleep(300);
+  await page.mouse.move(2, 2, { steps: 2 });
+  await sleep(EFFECT_SETTLE_MS);
+  const back = (await pixels()) === plain;
+  const before = await page.evaluate(() => window.__wakeups);
+  await sleep(IDLE_MS);
+  const wakeups = (await page.evaluate(() => window.__wakeups)) - before;
+  await page.close();
+  const name = `${layout} × ${effect}${reduced ? ', reduced motion' : ''}${options && `, ${options}`}`;
+  if (reduced) report(`${name}: the pointer changes nothing, then idle`, !moved && back && !wakeups, `: ${wakeups} wakeups`);
+  else report(`${name}: hover, leave, plain again, then idle`, moved && back && !wakeups,
+    `: ${moved ? '' : 'nothing moved, '}${back ? '' : 'not plain, '}${wakeups} wakeups`);
+}
+
+async function matrix() {
+  const context = await browser.newContext({ viewport: { width: 1000, height: 1000 } });
+  for (const layout of LAYOUTS) {
+    for (const effect of EFFECTS) await combo(context, layout, effect, false);
+  }
+  for (const effect of EFFECTS) await combo(context, 'lines', effect, true);
+  // The most varied boxes: big jitter, wide spans, a box on most woken glyphs.
+  for (const layout of LAYOUTS) await combo(context, layout, 'breathe', false, '{"boxJitter":1,"boxSpan":4,"box":1}');
+  await context.close();
+}
+
+try {
+  if (only !== 'matrix') await demoChecks();
+  if (only !== 'demo') await matrix();
 } finally {
   await browser.close();
   server.close();

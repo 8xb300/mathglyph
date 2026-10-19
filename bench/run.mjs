@@ -1,7 +1,10 @@
-// Benchmark: the original script against the new engine.
+// Benchmark: the original script against the new engine, or each hover effect of the new engine.
 // (The DOM renderer in the README table was measured at commit 1f75b33, where it still existed.)
 //
 //   node bench/run.mjs [original] [canvas] [--runs=3] [--chars=2000]
+//   node bench/run.mjs effects [breathe] [ripple] ... [--runs=3] [--chars=2000]
+//
+// effects: only the hover test, once per effect (default: breathe and every module in dist/effects).
 //
 // Needs playwright (with its Chromium) and esbuild where require() finds them: a node_modules
 // folder or NODE_PATH. Linux only, because the browser's CPU time comes from /proc.
@@ -201,6 +204,13 @@ async function offscreenTest(browser, url) {
   return { offscreenWakeups: after.wakeups - before.wakeups };
 }
 
+// The effect and layout modules in dist/, by name.
+function built(kind) {
+  const dir = path.join(root, 'dist', kind);
+  if (!fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir).filter((f) => f.endsWith('.min.js')).map((f) => f.slice(0, -'.min.js'.length)).sort();
+}
+
 function sizes() {
   const { transformSync } = require('esbuild');
   const original = fs.readFileSync(path.join(resultsDir, 'original.js'));
@@ -208,11 +218,19 @@ function sizes() {
     ['original', original],
     ['original, esbuild minify', Buffer.from(transformSync(original.toString(), { minify: true }).code)],
   ];
-  for (const name of ['dist/mathglyph.min.js', 'dist/mathglyph.iife.min.js']) {
+  const names = ['dist/mathglyph.min.js', 'dist/mathglyph.iife.min.js', 'dist/mathglyph.all.iife.min.js', 'dist/languages.min.js'];
+  for (const kind of ['effects', 'layouts']) names.push(...built(kind).map((name) => `dist/${kind}/${name}.min.js`));
+  for (const name of names) {
     const file = path.join(root, name);
     if (fs.existsSync(file)) files.push([name, fs.readFileSync(file)]);
   }
   return files.map(([name, data]) => ({ name, bytes: data.length, gzip: zlib.gzipSync(data, { level: 9 }).length }));
+}
+
+function sizeTable(size) {
+  const out = ['**Size**', '', '| file | bytes | gzip -9 |', '|---|--:|--:|'];
+  for (const file of size) out.push(`| ${file.name} | ${file.bytes.toLocaleString('en-US')} | ${file.gzip.toLocaleString('en-US')} |`);
+  return out;
 }
 
 function markdown({ machine, chars, runs, median, size }) {
@@ -241,8 +259,7 @@ function markdown({ machine, chars, runs, median, size }) {
   for (const [variant, m] of Object.entries(median)) {
     out.push(`| ${variant} | ${count(m.idleWakeups)} | ${percent(m.idleCpu)} | ${count(m.offscreenWakeups)} |`);
   }
-  out.push('', '**Size**', '', '| file | bytes | gzip -9 |', '|---|--:|--:|');
-  for (const file of size) out.push(`| ${file.name} | ${count(file.bytes)} | ${count(file.gzip)} |`);
+  out.push('', ...sizeTable(size));
   out.push(
     '',
     `Median of ${runs} runs on ${machine}. Per-frame times are the CDP Performance.getMetrics ` +
@@ -253,12 +270,64 @@ function markdown({ machine, chars, runs, median, size }) {
   return out.join('\n');
 }
 
+function effectsMarkdown({ machine, chars, runs, median, size }) {
+  const ms = (n, digits) => `${n.toFixed(digits)} ms`;
+  const out = [
+    `**Hover, per effect**: for ${HOVER_MS / 1000} s, one synthetic pointermove per frame zig-zags across every line of ` +
+      `${Math.round(chars).toLocaleString('en-US')} characters (lines of about 80, 1280 px wide), layout 'lines'.`,
+    '',
+    '| effect | frames | main thread / frame | script | frame p50 | frame p95 | frames > 20 ms | CPU |',
+    '|---|--:|--:|--:|--:|--:|--:|--:|',
+  ];
+  for (const [effect, m] of Object.entries(median)) {
+    out.push(`| ${effect} | ${Math.round(m.frames)} | ${ms(m.mainMs, 2)} | ${ms(m.scriptMs, 2)} | ${ms(m.frameP50, 1)} | ` +
+      `${ms(m.frameP95, 1)} | ${Math.round(m.slowFrames)} | ${m.hoverCpu.toFixed(1)} % |`);
+  }
+  out.push('', ...sizeTable(size), '', `Median of ${runs} runs on ${machine}.`);
+  return out.join('\n');
+}
+
+// The hover test once per effect, with the effects taking turns in each run.
+async function effectsMain(asked, runs, chars) {
+  const effects = asked.length ? asked : ['breathe', ...built('effects')];
+  const server = await serveRepo();
+  const all = Object.fromEntries(effects.map((effect) => [effect, []]));
+  let version;
+  try {
+    for (let run = 1; run <= runs; run++) {
+      const browser = await chromium.launch();
+      try {
+        version = browser.version();
+        for (const effect of effects) {
+          console.error(`run ${run} of ${runs}: ${effect}`);
+          const url = `http://127.0.0.1:${server.address().port}/bench/page.html?impl=canvas&chars=${chars}&effect=${effect}`;
+          all[effect].push(await hoverTest(browser, url));
+        }
+      } finally {
+        await browser.close();
+      }
+    }
+  } finally {
+    server.close();
+  }
+  const medians = Object.fromEntries(Object.entries(all).map(([effect, results]) =>
+    [effect, Object.fromEntries(Object.keys(results[0]).map((key) => [key, median(results.map((result) => result[key]))]))]));
+  const report = { machine: `${os.type()} ${os.machine()}, headless Chromium ${version}`, chars, runs, median: medians, size: sizes(), all };
+  fs.writeFileSync(path.join(resultsDir, 'effects.json'), JSON.stringify(report, null, 2) + '\n');
+  console.log(effectsMarkdown(report));
+}
+
 async function main() {
   const args = process.argv.slice(2);
   const option = (name, fallback) => Number(args.find((arg) => arg.startsWith(`--${name}=`))?.split('=')[1] ?? fallback);
   const runs = option('runs', 3);
   const chars = option('chars', 2000);
   const asked = args.filter((arg) => !arg.startsWith('--'));
+  if (asked[0] === 'effects') {
+    writeOriginal();
+    await effectsMain(asked.slice(1), runs, chars);
+    return;
+  }
   const unknown = asked.filter((variant) => !FILES[variant]);
   if (unknown.length) {
     console.error(`unknown variant ${unknown.join(', ')}: use original or canvas`);

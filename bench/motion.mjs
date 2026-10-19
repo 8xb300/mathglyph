@@ -3,7 +3,10 @@
 // (rest: 'plain') and leaves, so the text goes back to plain. Then it measures the main-thread
 // time per frame while a pointer zig-zags over 2,000 characters, as bench/run.mjs does.
 //
-//   node bench/motion.mjs [engine.js] [--seeds=3]
+//   node bench/motion.mjs [engine.js] [--seeds=3] [--layout=grid] [--effect=ripple]
+//
+// --layout and --effect load that module from dist/ (run npm run build first). A glyph's place is
+// its slot centre (cx, cy) where the engine has one, else its line's left edge plus its offset.
 //
 // engine.js defaults to dist/mathglyph.js. Give the path of an older build to compare: the page
 // gets that file in its place. Math.random is seeded, so a run with the same engine and seed
@@ -14,7 +17,7 @@
 //   max jump      the largest move of one glyph between two frames, in px
 //   max jump/60Hz the same, scaled to a 16.7 ms frame, so a dropped frame does not count double
 //   max kick      the largest change of one glyph's speed between two frames, in px per 16.7 ms frame
-//   twitch        how often a glyph's motion turns back, per glyph per second
+//   twitch        how often a glyph's motion turns back, along x or y, per glyph per second
 //   width twitch  the same for slot widths
 //   line twitch   the same for the left edge of each line
 //   line max jump the largest move of a line's left edge between two frames, in px
@@ -31,6 +34,7 @@ const { chromium } = require('playwright');
 const args = process.argv.slice(2);
 const option = (name, fallback) => Number(args.find((arg) => arg.startsWith(`--${name}=`))?.split('=')[1] ?? fallback);
 const SEEDS = option('seeds', 3);
+const modules = ['layout', 'effect'].map((kind) => args.find((arg) => arg.startsWith(`--${kind}=`))?.replace('--', '&')).join('');
 const engineFile = path.resolve(args.find((arg) => !arg.startsWith('--')) ?? path.join(root, 'dist', 'mathglyph.js'));
 const HOVER_MS = 5000;
 // A move under this many px between two frames counts as standing still.
@@ -65,8 +69,9 @@ function initScript(seed) {
     const { lines, cells } = window.__mgState();
     const sample = {
       t: now,
-      left: lines.map((line) => line.left),
-      x: cells.map((c) => lines[c.line].left + c.x + c.w / 2),
+      left: lines.map((line) => line.left ?? 0),
+      x: cells.map((c) => c.cx ?? lines[c.line].left + c.x + c.w / 2),
+      y: cells.map((c) => c.cy ?? 0),
       w: cells.map((c) => c.w),
       g: cells.map((c) => c.g),
       line: cells.map((c) => c.line),
@@ -123,11 +128,11 @@ function phaseStats(samples, from, to) {
   let maxJump = 0, maxJump60 = 0, maxKick = 0, flips = 0, widthFlips = 0, lineFlips = 0, lineJump = 0, swaps = 0;
   const cells = s.length ? s[0].x.length : 0;
   const lines = s.length ? s[0].left.length : 0;
-  const lastDx = new Array(cells).fill(0);
+  const lastDx = new Array(cells).fill(0), lastDy = new Array(cells).fill(0);
   // A turn is a move against the last real move, when that move was at most TURN frames ago:
   // the old engine stands still for one frame when a target changes, then moves the other way.
   const turns = (count) => ({ sign: new Array(count).fill(0), frame: new Array(count).fill(-99) });
-  const gx = turns(cells), gw = turns(cells), gl = turns(lines);
+  const gx = turns(cells), gy = turns(cells), gw = turns(cells), gl = turns(lines);
   const turned = (t, i, d, f) => {
     if (Math.abs(d) < STILL) return 0;
     const sign = Math.sign(d), back = sign === -t.sign[i] && f - t.frame[i] <= TURN;
@@ -141,13 +146,14 @@ function phaseStats(samples, from, to) {
       if (b.g[i] !== a.g[i]) swaps++;
       // Only glyphs that are drawn in both frames: a folded word letter has width 0.
       if (a.w[i] < 0.5 || b.w[i] < 0.5) { lastDx[i] = NaN; continue; }
-      const dx = b.x[i] - a.x[i], dw = b.w[i] - a.w[i];
-      maxJump = Math.max(maxJump, Math.abs(dx));
-      maxJump60 = Math.max(maxJump60, Math.abs(dx) * scale);
-      if (!Number.isNaN(lastDx[i])) maxKick = Math.max(maxKick, Math.abs(dx * scale - lastDx[i]));
-      flips += turned(gx, i, dx, f);
+      const dx = b.x[i] - a.x[i], dy = b.y[i] - a.y[i], dw = b.w[i] - a.w[i], d = Math.hypot(dx, dy);
+      maxJump = Math.max(maxJump, d);
+      maxJump60 = Math.max(maxJump60, d * scale);
+      if (!Number.isNaN(lastDx[i])) maxKick = Math.max(maxKick, Math.hypot(dx * scale - lastDx[i], dy * scale - lastDy[i]));
+      flips += turned(gx, i, dx, f) + turned(gy, i, dy, f);
       widthFlips += turned(gw, i, dw, f);
       lastDx[i] = dx * scale;
+      lastDy[i] = dy * scale;
     }
     for (let l = 0; l < lines; l++) {
       const dl = b.left[l] - a.left[l];
@@ -232,8 +238,8 @@ try {
   const base = `http://127.0.0.1:${server.address().port}/bench/page.html?impl=canvas`;
   for (let seed = 1; seed <= SEEDS; seed++) {
     console.error(`seed ${seed} of ${SEEDS}`);
-    runs.push(await recordSweep(browser, `${base}&mode=preview&rest=plain`, seed));
-    costs.push(await hoverCost(browser, `${base}&chars=2000`));
+    runs.push(await recordSweep(browser, `${base}&mode=preview&rest=plain${modules}`, seed));
+    costs.push(await hoverCost(browser, `${base}&chars=2000${modules}`));
   }
 } finally {
   await browser.close();
@@ -249,7 +255,7 @@ fs.mkdirSync(path.join(root, 'bench', 'results'), { recursive: true });
 fs.writeFileSync(path.join(root, 'bench', 'results', 'motion.json'), JSON.stringify({ ...result, runs, costs }, null, 2) + '\n');
 
 const fmt = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(2));
-console.log(`engine ${result.engine}, median of ${SEEDS} seeds`);
+console.log(`engine ${result.engine}${modules.replaceAll('&', ', ')}, median of ${SEEDS} seeds`);
 console.log(`| | hover | revert |\n|---|--:|--:|`);
 const names = {
   frames: 'frames', seconds: 'seconds', maxJump: 'max jump, px', maxJump60: 'max jump/60Hz, px', maxKick: 'max kick, px/60Hz frame',
