@@ -57,6 +57,8 @@ async function demoChecks() {
   await page.goto(`${base}/docs/index.html`);
   await page.waitForSelector('#hero canvas');
   await page.evaluate(() => document.fonts.ready);
+  // The options sit in folded sections: open them all, so that every control is in reach.
+  await page.locator('#open-all').click();
   await sleep(3000);  // the intro
   await page.evaluate(() => {
     const el = document.getElementById('revert');

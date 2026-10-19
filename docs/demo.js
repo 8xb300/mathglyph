@@ -97,40 +97,43 @@ const LANGUAGES = {
 
 // The gallery: a card per layout and per effect. 'lines' and 'breathe' are built in; the others are
 // the modules registered above. A card shows CARD_TEXT, or its own lines that fill its shape.
+// `preview` holds options for the card only, so that the shape fits the card's preview.
 const CARD_TEXT = ['every letter is', 'a small *variable*'];
 const GALLERY = {
   layout: {
     lines: { about: 'Centred lines. The default.' },
     columns: {
       module: columns,
-      about: 'Vertical text, read right to left in Chinese, Japanese and Korean. The columns breathe up and down.',
+      about: 'Vertical CJK text.',
       // Short columns in a large font. The anchor word, "breath", stays still.
       texts: {
-        'zh-Hans': { name: '中文', lines: ['一字一变量', '一句一证明', '符号*呼吸*着', '又归于平淡'], anchor: '呼吸' },
-        ja: { name: '日本語', lines: ['どの文字も変数', '言葉は小さな証明', '記号は*呼吸*する', 'また文字に戻る'], anchor: '呼吸' },
-        ko: { name: '한국어', lines: ['글자는 변수', '낱말은 증명', '기호가 *숨* 쉬고', '다시 글자로'], anchor: '숨' },
+        'zh-Hans': { name: '中文', short: '中', lines: ['一字一变量', '一句一证明', '符号*呼吸*着', '又归于平淡'], anchor: '呼吸' },
+        ja: { name: '日本語', short: '日', lines: ['どの文字も変数', '言葉は小さな証明', '記号は*呼吸*する', 'また文字に戻る'], anchor: '呼吸' },
+        ko: { name: '한국어', short: '한', lines: ['글자는 변수', '낱말은 증명', '기호가 *숨* 쉬고', '다시 글자로'], anchor: '숨' },
       },
       options: { layout: { name: 'columns', spacing: 2 }, lookalikes: cjk, maxSize: 34 },
+      preview: { maxSize: 16, layout: { name: 'columns', spacing: 1.5 } },
     },
     grid: {
       module: grid,
-      about: 'Rows and aligned columns. A wide glyph pushes its column and its row apart.',
+      about: 'Rows and aligned columns.',
       lines: ['every', 'glyph', '*moves*'],
     },
     ring: {
       module: ring,
-      about: 'The text runs around a circle that grows outward as glyphs widen.',
+      about: 'Text around a growing circle.',
       lines: ['every letter goes *round*'],
       options: { anchor: 'round', maxSize: 30 },
+      preview: { maxSize: 14 },
     },
   },
   effect: {
-    breathe: { about: 'Glyphs near the pointer scramble, and their slots widen. The default.' },
-    ripple: { module: ripple, about: 'Rings run out from the pointer. Glyphs swap and pulse as a ring passes.' },
-    firework: { module: firework, about: 'Glyphs burst out with coloured sparks, then spring back.' },
-    lens: { module: lens, about: 'A magnifier follows the pointer. Letters under it grow.' },
-    cascade: { module: cascade, about: 'Letters drop into their slots, column by column, like rain.' },
-    shatter: { module: shatter, about: 'Letters break into dots that fly back, often as a new glyph.' },
+    breathe: { about: 'Glyphs swap, slots widen.' },
+    ripple: { module: ripple, about: 'Rings run out from the pointer.' },
+    firework: { module: firework, about: 'Glyphs burst out with sparks.' },
+    lens: { module: lens, about: 'A magnifier follows the pointer.' },
+    cascade: { module: cascade, about: 'Letters fall into place like rain.' },
+    shatter: { module: shatter, about: 'Letters burst into dots.' },
   },
 };
 
@@ -162,7 +165,8 @@ const hero = $('hero');
 const BASE = { ...MathGlyph.defaults, wordMap: {} };
 // Plain at rest is the first view: it shows the slots grow and shrink best.
 // The middle line's white word is the anchor: it stays still while the rest breathes around it.
-const state = { ...BASE, lines: LANGUAGES.en.lines, fonts: [MATH_FONT], rest: 'plain', anchor: LANGUAGES.en.anchor };
+const START = { ...BASE, lines: LANGUAGES.en.lines, fonts: [MATH_FONT], rest: 'plain', anchor: LANGUAGES.en.anchor };
+const state = { ...START };
 let tableName = null;  // which entry of TABLES is in state.lookalikes
 const fx = MathGlyph.mount(hero, { lines: state.lines, fonts: state.fonts, rest: state.rest, anchor: state.anchor });
 const cards = [];  // the live instances in the gallery
@@ -173,6 +177,7 @@ function set(patch) {
   const shared = Object.fromEntries(Object.entries(patch).filter(([key]) => SHARED.includes(key)));
   if (Object.keys(shared).length) for (const card of cards) card.update(shared);
   showConfig();
+  showSummaries();
 }
 
 // ---- sliders, selects and checkboxes: the element id is the option name ----
@@ -191,13 +196,20 @@ function showValue(input) {
   document.querySelector(`output[for="${input.id}"]`).textContent = input.value + (input.dataset.unit || '');
 }
 
+function showOptions() {
+  for (const el of document.querySelectorAll('[data-opt]')) {
+    const key = el.dataset.opt;
+    if (el.type === 'checkbox') el.checked = state[key];
+    else el.value = state[key];
+    if (el.type === 'range') showValue(el);
+  }
+  $('rest-plain').checked = state.rest === 'plain';
+  showSwatches();
+}
+
 for (const el of document.querySelectorAll('[data-opt]')) {
   const key = el.dataset.opt;
-  if (el.type === 'checkbox') el.checked = state[key];
-  else el.value = state[key];
-
   if (el.type === 'range') {
-    showValue(el);
     el.addEventListener('input', () => {
       showValue(el);
       set({ [key]: Number(el.value) });
@@ -206,10 +218,9 @@ for (const el of document.querySelectorAll('[data-opt]')) {
     el.addEventListener('change', () => set({ [key]: el.type === 'checkbox' ? el.checked : el.value }));
   }
 }
-$('rest-plain').checked = state.rest === 'plain';
 $('rest-plain').addEventListener('change', () => set({ rest: $('rest-plain').checked ? 'plain' : 'glyphs' }));
 $('palette').addEventListener('change', showSwatches);
-showSwatches();
+showOptions();
 
 $('replay').addEventListener('click', () => fx.replay());
 $('reroll').addEventListener('click', () => fx.reroll());
@@ -379,7 +390,7 @@ function showControls(code) {
   }
 }
 
-function addCard(kind, name, { about, lines = CARD_TEXT, texts, options }) {
+function addCard(kind, name, { about, lines = CARD_TEXT, texts, options, preview }) {
   const card = document.createElement('button');
   card.type = 'button';
   card.className = 'card';
@@ -393,6 +404,7 @@ function addCard(kind, name, { about, lines = CARD_TEXT, texts, options }) {
   const caption = document.createElement('span');
   caption.className = 'about';
   caption.textContent = about;
+  caption.title = about;
   card.append(live, title, caption);
   const shared = Object.fromEntries(SHARED.map((key) => [key, state[key]]));
   const text = texts && Object.values(texts)[0];
@@ -403,25 +415,28 @@ function addCard(kind, name, { about, lines = CARD_TEXT, texts, options }) {
     intro: false,
     maxSize: 18,
     ...options,
+    ...preview,
     ...(text && { lines: text.lines, anchor: text.anchor }),
   });
   cards.push(mg);
-  if (!texts) {
-    $(`${kind}s`).append(card);
-    return;
-  }
-  // A card with texts in several languages gets a picker beside it: a button can not hold buttons.
+  // Every card sits in a slot, so that all cards are built the same. A card with texts in several
+  // languages puts a picker in the slot, over its preview.
   const slot = document.createElement('div');
   slot.className = 'slot';
+  slot.append(card);
+  $(`${kind}s`).append(slot);
+  if (!texts) return;
   const picker = document.createElement('div');
   picker.className = 'picker';
   picker.setAttribute('role', 'group');
   picker.setAttribute('aria-label', `${name} text language`);
-  for (const [code, { name: label }] of Object.entries(texts)) {
+  for (const [code, { name: label, short }] of Object.entries(texts)) {
     const chip = document.createElement('button');
     chip.type = 'button';
     chip.lang = code;
-    chip.textContent = label;
+    chip.textContent = short;
+    chip.title = label;
+    chip.setAttribute('aria-label', label);
     chip.dataset.text = code;
     chip.setAttribute('aria-pressed', String(texts[code] === text));
     picker.append(chip);
@@ -436,14 +451,31 @@ function addCard(kind, name, { about, lines = CARD_TEXT, texts, options }) {
     pickedText[name] = code;
     mg.update({ lines: texts[code].lines, anchor: texts[code].anchor });
   });
-  slot.append(card, picker);
-  $(`${kind}s`).append(slot);
+  slot.append(picker);
+}
+
+// The quick controls under the hero: a segmented control for each kind, in step with the gallery.
+function addSegments(kind) {
+  for (const name of Object.keys(GALLERY[kind])) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = name;
+    button.value = name;
+    $(`bar-${kind}`).append(button);
+  }
+  $(`bar-${kind}`).addEventListener('click', (event) => {
+    const button = event.target.closest('button');
+    if (button) pick(kind, button.value);
+  });
 }
 
 function showCards() {
   for (const kind of ['layout', 'effect']) {
     for (const card of $(`${kind}s`).querySelectorAll(`[data-${kind}]`)) {
       card.setAttribute('aria-pressed', String(card.dataset[kind] === nameOf(state[kind])));
+    }
+    for (const button of $(`bar-${kind}`).children) {
+      button.setAttribute('aria-pressed', String(button.value === nameOf(state[kind])));
     }
   }
 }
@@ -490,17 +522,17 @@ function showSettings(kind) {
   box.replaceChildren(legend, ...fields);
   for (const input of box.querySelectorAll('input[type=range]')) showValue(input);
   box.hidden = !fields.length;
+  $('modules-none').hidden = !($('layout-settings').hidden && $('effect-settings').hidden);
+  $('modules-none').textContent = `${nameOf(state.layout)} and ${nameOf(state.effect)} have no settings of their own.`;
 }
 
 for (const kind of ['layout', 'effect']) {
   for (const [name, card] of Object.entries(GALLERY[kind])) addCard(kind, name, card);
+  addSegments(kind);
 }
 
-$('gallery').addEventListener('click', (event) => {
-  const card = event.target.closest('[data-layout], [data-effect]');
-  if (!card) return;
-  const kind = card.dataset.layout ? 'layout' : 'effect';
-  const name = card.dataset[kind];
+// A layout brings its text, language and sizes to the hero. An effect changes only the effect.
+function pick(kind, name) {
   if (kind === 'layout') {
     const { code, tableName: table, patch } = setupOf(name);
     tableName = table;
@@ -513,6 +545,13 @@ $('gallery').addEventListener('click', (event) => {
     showCards();
     showSettings(kind);
   }
+}
+
+$('gallery').addEventListener('click', (event) => {
+  const card = event.target.closest('[data-layout], [data-effect]');
+  if (!card) return;
+  const kind = card.dataset.layout ? 'layout' : 'effect';
+  pick(kind, card.dataset[kind]);
   // The gallery is far below the hero: bring the hero into view, with the settings under it.
   hero.scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
 });
@@ -577,24 +616,105 @@ function showConfig() {
     if (JSON.stringify(state[key]) !== JSON.stringify(BASE[key])) changed[key] = state[key];
   }
   if (changed.lookalikes) changed.lookalikes = '__TABLE__';
+  if (changed.fonts) changed.fonts = changed.fonts.map((f) => (f.url ? { ...f, url: new URL(f.url, location.href).href } : f));
   // The layout and effect modules the config needs: they are imported and registered.
   const modules = ['layout', 'effect'].map((kind) => [kind, nameOf(state[kind])]).filter(([kind, name]) => GALLERY[kind][name].module);
-  $('copy-status').textContent = '';
+  const url = (file) => quote(new URL(file, location.href).href);
+  for (const status of document.querySelectorAll('.copy-status')) status.textContent = '';
+  $('sum-code').textContent = `${Object.keys(changed).length} options differ from the defaults`;
   $('config').textContent =
-    "import * as MathGlyph from './mathglyph.js';\n" +
-    modules.map(([kind, name]) => `import { ${name} } from './${kind}s/${name}.js';\n`).join('') +
-    (tableName ? `import { ${tableName} } from './languages.js';\n` : '') + '\n' +
+    `import * as MathGlyph from ${url('./mathglyph.js')};\n` +
+    modules.map(([kind, name]) => `import { ${name} } from ${url(`./${kind}s/${name}.js`)};\n`).join('') +
+    (tableName ? `import { ${tableName} } from ${url('./languages.js')};\n` : '') + '\n' +
     (modules.length ? `MathGlyph.register(${modules.map(([, name]) => name).join(', ')});\n` : '') +
-    `const fx = MathGlyph.mount(document.getElementById('hero'), ${toJS(changed, '')});\n`.replace(/['"]__TABLE__['"]/, tableName);
+    "const el = document.getElementById('hero');\n" +
+    `const fx = MathGlyph.mount(el, ${toJS(changed, '')});\n`.replace(/['"]__TABLE__['"]/, tableName);
 }
 showConfig();
 
-$('copy').addEventListener('click', async () => {
-  try {
-    await navigator.clipboard.writeText($('config').textContent);
-    $('copy-status').textContent = 'Copied.';
-  } catch {
-    getSelection().selectAllChildren($('config'));
-    $('copy-status').textContent = 'Selected. Press Ctrl+C or Cmd+C to copy.';
-  }
+for (const button of document.querySelectorAll('[data-copy]')) {
+  button.addEventListener('click', async () => {
+    const status = button.parentElement.querySelector('.copy-status');
+    try {
+      await navigator.clipboard.writeText($('config').textContent);
+      status.textContent = 'Copied.';
+    } catch {
+      $('sec-code').open = true;
+      getSelection().selectAllChildren($('config'));
+      status.textContent = 'Selected. Press Ctrl+C or Cmd+C to copy.';
+    }
+  });
+}
+
+// ---- sections: a short summary on each header, and the open ones kept across visits ----
+
+function fixed(n) {
+  return String(Math.round(n * 100) / 100);
+}
+
+function showSummaries() {
+  const font = $('font').value;
+  $('sum-text').textContent = [
+    LANGUAGES[$('lang').value]?.name || 'custom text',
+    font === 'system' ? 'system font' : font === 'custom' ? 'custom font' : FONTS[Number(font)].family,
+    state.anchor ? `anchor ${state.anchor}` : 'no anchor',
+    `tracking ${fixed(state.tracking)}`,
+  ].join(' · ');
+  $('sum-glyphs').textContent = [
+    `substitute ${fixed(state.substitute)}`,
+    `legible ${fixed(state.legible)}`,
+    (state.scripts || ['latin']).join('+'),
+    state.symbols === 'all' ? 'all symbols' : `${state.symbols.length} symbol groups`,
+    state.expand ? 'expand' : 'strict grid',
+  ].join(' · ');
+  $('sum-colour').textContent = [state.palette, `color ${fixed(state.color)}`, `box ${fixed(state.box)}`, state.boxStyle].join(' · ');
+  $('sum-motion').textContent = [
+    state.motion,
+    state.rest === 'plain' ? 'plain at rest' : 'glyphs at rest',
+    `speed ${fixed(state.speed)}×`,
+    state.fit ? `fit, max ${state.maxSize}px` : 'no fit',
+  ].join(' · ');
+  $('sum-modules').textContent = ['layout', 'effect'].map((kind) => {
+    const { name, ...changed } = typeof state[kind] === 'string' ? { name: state[kind] } : state[kind];
+    return [name, ...Object.entries(changed).map(([key, value]) => `${key} ${typeof value === 'number' ? fixed(value) : value}`)].join(' ');
+  }).join(' · ');
+}
+showSummaries();
+
+const OPEN_KEY = 'mathglyph-demo:open';
+const sections = [...document.querySelectorAll('.sec')];
+let stored = [];
+try { stored = JSON.parse(localStorage.getItem(OPEN_KEY)) || []; } catch {}
+for (const section of sections) {
+  section.open = stored.includes(section.id);
+  section.addEventListener('toggle', () => {
+    try { localStorage.setItem(OPEN_KEY, JSON.stringify(sections.filter((s) => s.open).map((s) => s.id))); } catch {}
+    showOpenAll();
+  });
+}
+
+function showOpenAll() {
+  $('open-all').textContent = sections.every((s) => s.open) ? 'Close all' : 'Open all';
+}
+showOpenAll();
+$('open-all').addEventListener('click', () => {
+  const open = !sections.every((s) => s.open);
+  for (const section of sections) section.open = open;
+});
+
+// ---- reset: every option back to the first view ----
+
+$('reset').addEventListener('click', () => {
+  tableName = null;
+  $('font').value = 'system';
+  $('font-form').hidden = true;
+  set({ ...START });
+  showOptions();
+  showControls('en');
+  showChips();
+  showScripts();
+  showCards();
+  showSettings('layout');
+  showSettings('effect');
+  showSummaries();
 });
