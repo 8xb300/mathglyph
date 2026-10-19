@@ -1,4 +1,4 @@
-/*! mathglyph v0.4.0 | MIT | github.com/8xb300/mathglyph */
+/*! mathglyph v0.5.0 | MIT | github.com/8xb300/mathglyph */
 
 // src/mathglyph.js
 var BASE = { bold: 119808, italic: 119860, script: 119964, fraktur: 120068, double: 120120 };
@@ -400,6 +400,7 @@ function greekVariant(ch) {
 function isLatin(ch) {
   return /^[A-Za-z]$/.test(ch);
 }
+var WIDE = /[\p{scx=Han}\p{scx=Hiragana}\p{scx=Katakana}\p{scx=Hangul}]/u;
 var LETTER = /[\p{L}\p{M}\p{N}]/u;
 function wordAt(str, word) {
   var first = str.indexOf(word);
@@ -485,6 +486,7 @@ var LINES = {
 var EFFECTS = { breathe: BREATHE };
 var LAYOUTS = { lines: LINES };
 var warned = {};
+var REMOVED = { wave: "the 'wave' effect was removed in v0.5.0" };
 function register() {
   for (var i = 0; i < arguments.length; i++) {
     var m = arguments[i];
@@ -502,7 +504,7 @@ function resolve(table, value, fallback) {
     if (!mod) {
       if (!warned[name]) {
         warned[name] = 1;
-        console.warn("mathglyph: nothing named " + name + " is registered");
+        console.warn(REMOVED[name] ? "mathglyph: " + REMOVED[name] + ", so " + fallback + " is used" : "mathglyph: nothing named " + name + " is registered");
       }
       mod = table[fallback];
       own = {};
@@ -641,7 +643,7 @@ function mount(root, options) {
     if (!o.expand) return (plainWidth(c.ch, c.grid) + pad) * fs;
     if (c.gone) return 0;
     if (c.g === " ") return (o.wordSpacing + pad) * fs;
-    return (Math.max(monoEm, glyphW(c.g)) + o.tracking + (c.box ? BOX_PAD : 0) + (c.pad ? SPACE_PAD : 0) + pad) * fs;
+    return (Math.max(c.min, glyphW(c.g)) + o.tracking + (c.box ? BOX_PAD : 0) + (c.pad ? SPACE_PAD : 0) + pad) * fs;
   }
   function retarget(c) {
     var tw = slotWidth(c);
@@ -891,6 +893,7 @@ function mount(root, options) {
           word: null,
           grid: 1,
           pw: 0,
+          min: 0,
           g: p.ch,
           color: null,
           box: false,
@@ -1017,6 +1020,7 @@ function mount(root, options) {
       var natural = 0, grid = 0, mid = 0;
       L.cells.forEach(function(c, i) {
         c.grid = Math.max(1, Math.round(glyphW(c.ch) / monoEm));
+        c.min = WIDE.test(c.ch) ? Math.max(monoEm, glyphW(c.ch)) : monoEm;
         if (i === L.a0) mid = natural;
         if (i === L.a1) mid = (mid + natural) / 2;
         var n = plainWidth(c.ch, 0), g = plainWidth(c.ch, c.grid);

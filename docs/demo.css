@@ -156,6 +156,12 @@ button:hover { border-color: var(--edge-hover); background: #222229; }
 .name { margin-top: 6px; font: 600 .86rem/1.3 var(--mono); }
 .card[aria-pressed=true] .name { color: var(--accent); }
 .about { color: var(--muted); font-size: .78rem; line-height: 1.4; }
+/* A card with a language picker: the picker sits in the card's top edge, outside the card button. */
+.slot { position: relative; display: grid; }
+.slot > .card { padding-top: 40px; }
+.picker { position: absolute; top: 10px; left: 14px; display: flex; gap: 4px; }
+.picker button { padding: 2px 9px; border-radius: 999px; font-size: .74rem; }
+.picker [aria-pressed=true] { border-color: var(--accent); color: var(--accent); }
 
 .settings { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); column-gap: 20px; }
 .settings[hidden] { display: none; }

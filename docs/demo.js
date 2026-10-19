@@ -1,19 +1,18 @@
 import * as MathGlyph from './mathglyph.js';
-import { greek, cyrillic } from './languages.js';
+import { greek, cyrillic, cjk } from './languages.js';
 import { columns } from './layouts/columns.js';
 import { grid } from './layouts/grid.js';
 import { ring } from './layouts/ring.js';
 import { ripple } from './effects/ripple.js';
 import { firework } from './effects/firework.js';
-import { wave } from './effects/wave.js';
 import { lens } from './effects/lens.js';
 import { cascade } from './effects/cascade.js';
 import { shatter } from './effects/shatter.js';
 
-MathGlyph.register(columns, grid, ring, ripple, firework, wave, lens, cascade, shatter);
+MathGlyph.register(columns, grid, ring, ripple, firework, lens, cascade, shatter);
 
 // Look-alike tables for scripts beyond Latin, passed as `lookalikes`.
-const TABLES = { greek, cyrillic };
+const TABLES = { greek, cyrillic, cjk };
 
 // Always loaded: a small Noto Sans Math subset (OFL), hosted next to this page.
 const MATH_FONT = { family: 'Noto Sans Math', url: './fonts/noto-sans-math-subset.woff2' };
@@ -104,8 +103,14 @@ const GALLERY = {
     lines: { about: 'Centred lines. The default.' },
     columns: {
       module: columns,
-      about: 'Each line is a column. Slots grow along it, so the columns breathe up and down.',
-      lines: ['math', 'is a', 'small', '*poem*'],
+      about: 'Vertical text, read right to left in Chinese, Japanese and Korean. The columns breathe up and down.',
+      // Short columns in a large font. The anchor word, "breath", stays still.
+      texts: {
+        'zh-Hans': { name: '中文', lines: ['一字一变量', '一句一证明', '符号*呼吸*着', '又归于平淡'], anchor: '呼吸' },
+        ja: { name: '日本語', lines: ['どの文字も変数', '言葉は小さな証明', '記号は*呼吸*する', 'また文字に戻る'], anchor: '呼吸' },
+        ko: { name: '한국어', lines: ['글자는 변수', '낱말은 증명', '기호가 *숨* 쉬고', '다시 글자로'], anchor: '숨' },
+      },
+      options: { layout: { name: 'columns', spacing: 2 }, lookalikes: cjk, maxSize: 34 },
     },
     grid: {
       module: grid,
@@ -115,14 +120,14 @@ const GALLERY = {
     ring: {
       module: ring,
       about: 'The text runs around a circle that grows outward as glyphs widen.',
-      lines: ['every letter', 'goes *round*'],
+      lines: ['every letter goes *round*'],
+      options: { anchor: 'round', maxSize: 30 },
     },
   },
   effect: {
     breathe: { about: 'Glyphs near the pointer scramble, and their slots widen. The default.' },
     ripple: { module: ripple, about: 'Rings run out from the pointer. Glyphs swap and pulse as a ring passes.' },
     firework: { module: firework, about: 'Glyphs burst out with coloured sparks, then spring back.' },
-    wave: { module: wave, about: 'Letters bob in a soft wave that runs along the text.' },
     lens: { module: lens, about: 'A magnifier follows the pointer. Letters under it grow.' },
     cascade: { module: cascade, about: 'Letters drop into their slots, column by column, like rain.' },
     shatter: { module: shatter, about: 'Letters break into dots that fly back, often as a new glyph.' },
@@ -136,7 +141,6 @@ const RANGES = {
   ring: { gap: [0, 4, 0.1] },
   ripple: { speed: SPEED, radius: [1, 16, 0.5], gap: [0.5, 6, 0.1], pulse: [0, 1.5, 0.05] },
   firework: { speed: SPEED, radius: [0.5, 6, 0.1], power: [0, 3, 0.05], spin: [0, 3, 0.05], sparks: [0, 8, 1] },
-  wave: { speed: SPEED, radius: [1, 12, 0.5], height: [0, 1, 0.01], length: [1, 12, 0.5], swap: [0, 1, 0.05] },
   lens: { speed: SPEED, radius: [2, 14, 0.5], zoom: [1, 3, 0.05] },
   cascade: { speed: SPEED, radius: [0.5, 8, 0.1], fall: [0, 3, 0.1] },
   shatter: { speed: SPEED, radius: [0.5, 5, 0.1], scatter: [0, 0.6, 0.02], dots: [2, 32, 1] },
@@ -328,7 +332,7 @@ function choose(kind, name, settings = {}) {
   set({ [kind]: Object.keys(changed).length ? { name, ...changed } : name });
 }
 
-function addCard(kind, name, { about, lines = CARD_TEXT }) {
+function addCard(kind, name, { about, lines = CARD_TEXT, texts, options }) {
   const card = document.createElement('button');
   card.type = 'button';
   card.className = 'card';
@@ -343,20 +347,54 @@ function addCard(kind, name, { about, lines = CARD_TEXT }) {
   caption.className = 'about';
   caption.textContent = about;
   card.append(live, title, caption);
-  $(`${kind}s`).append(card);
   const shared = Object.fromEntries(SHARED.map((key) => [key, state[key]]));
-  cards.push(MathGlyph.mount(live, {
+  const text = texts && Object.values(texts)[0];
+  const mg = MathGlyph.mount(live, {
     ...shared,
     lines,
     [kind]: name,
     intro: false,
     maxSize: 18,
-  }));
+    ...options,
+    ...(text && { lines: text.lines, anchor: text.anchor }),
+  });
+  cards.push(mg);
+  if (!texts) {
+    $(`${kind}s`).append(card);
+    return;
+  }
+  // A card with texts in several languages gets a picker beside it: a button can not hold buttons.
+  const slot = document.createElement('div');
+  slot.className = 'slot';
+  const picker = document.createElement('div');
+  picker.className = 'picker';
+  picker.setAttribute('role', 'group');
+  picker.setAttribute('aria-label', `${name} text language`);
+  for (const [code, { name: label }] of Object.entries(texts)) {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.lang = code;
+    chip.textContent = label;
+    chip.dataset.text = code;
+    chip.setAttribute('aria-pressed', String(texts[code] === text));
+    picker.append(chip);
+  }
+  live.lang = Object.keys(texts)[0];
+  picker.addEventListener('click', (event) => {
+    const chip = event.target.closest('[data-text]');
+    if (!chip) return;
+    const code = chip.dataset.text;
+    for (const other of picker.children) other.setAttribute('aria-pressed', String(other === chip));
+    live.lang = code;
+    mg.update({ lines: texts[code].lines, anchor: texts[code].anchor });
+  });
+  slot.append(card, picker);
+  $(`${kind}s`).append(slot);
 }
 
 function showCards() {
   for (const kind of ['layout', 'effect']) {
-    for (const card of $(`${kind}s`).children) {
+    for (const card of $(`${kind}s`).querySelectorAll(`[data-${kind}]`)) {
       card.setAttribute('aria-pressed', String(card.dataset[kind] === nameOf(state[kind])));
     }
   }

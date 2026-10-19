@@ -5,26 +5,28 @@
 // gap: the space between two lines, in em.
 
 var ROOM = 1.2;   // the circumference the ring can grow to, as a share of its plain one
+var PAD = 0.2;    // em each slot gets on top of its width, so letters do not crowd on a small circle
 
 export var ring = {
   name: 'ring',
   defaults: { gap: 1 },
-  // The ring at its largest, with a line's height around it, fits the element's width or 80% of
-  // the viewport, whichever is smaller.
+  // With fit, the font size is the largest, up to maxSize, at which the text goes around the circle
+  // once and the ring at its largest, with a line's height around it, fits the element's width or
+  // 80% of the viewport, whichever is smaller.
   size: function (m) {
     var around = 0;
     m.lines.forEach(function (L) {
-      L.cells.forEach(function (c) { around += c.pw; });
+      L.cells.forEach(function (c) { around += c.pw + PAD; });
       around += m.settings.gap;
     });
     var across = around * ROOM / Math.PI + m.lineEm;
     var fs = m.fit ? Math.max(8, Math.min(m.maxSize, Math.min(m.width, 0.8 * m.viewH) / across)) : m.fs;
-    return { fs: fs, height: Math.ceil(across * fs) };
+    return { fs: fs, height: Math.ceil(across * fs), pad: PAD };
   },
   place: function (m) {
     var gap = m.settings.gap * m.fs, around = 0, plain = 0, at = gap / 2, a = m.anchor, cs, k, x, t;
     m.lines.forEach(function (L) {
-      L.cells.forEach(function (c) { c.x = around; around += c.w; plain += c.pw * m.fs; });
+      L.cells.forEach(function (c) { c.x = around; around += c.w; plain += (c.pw + PAD) * m.fs; });
       around += gap;
       plain += gap;
     });

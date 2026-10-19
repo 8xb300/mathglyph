@@ -12,7 +12,7 @@ Give it a few lines of text. It shows them in monospace, with a math accent:
 - The pointer scrambles the characters near it, then they settle. There is also a left-to-right decode intro (on by default) and a slow idle reshuffle (off by default).
 - Words in `*stars*` are highlighted: white, and readable at rest.
 - With `rest: 'plain'`, the text is plain at rest. The pointer wakes glyphs near it, and the slots widen. A few seconds after the pointer leaves, the text goes back to plain and the slots narrow. The preview above uses this mode.
-- A [layout](#layouts) places the text: centred lines, columns, a grid or a ring. An [effect](#effects) sets what the pointer does: the glyphs breathe, ripple, burst into sparks, bob in a wave, grow under a lens, fall like rain or break into dots. You can [write your own effect](#custom-effects).
+- A [layout](#layouts) places the text: centred lines, columns, a grid or a ring. An [effect](#effects) sets what the pointer does: the glyphs breathe, ripple, burst into sparks, grow under a lens, fall like rain or break into dots. You can [write your own effect](#custom-effects).
 
 ## How it's different
 
@@ -46,7 +46,7 @@ mathglyph is not on npm yet. Load it from jsDelivr, or copy `dist/` into your pr
 ```html
 <h1 id="hero">Every proof starts with a good guess</h1>
 <script type="module">
-  import { mount } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.4.0/dist/mathglyph.min.js';
+  import { mount } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.0/dist/mathglyph.min.js';
   const lines = ['Every proof starts', 'with a *good* guess'];  // *stars* highlight a word
   mount(document.getElementById('hero'), { lines, palette: 'ice' });
 </script>
@@ -55,7 +55,7 @@ mathglyph is not on npm yet. Load it from jsDelivr, or copy `dist/` into your pr
 With a plain script tag, the same exports are on the global `MathGlyph`:
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.4.0/dist/mathglyph.iife.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.0/dist/mathglyph.iife.min.js"></script>
 <script>
   MathGlyph.mount(document.getElementById('hero'), { lines: ['Every proof starts', 'with a *good* guess'] });
 </script>
@@ -119,19 +119,19 @@ Put the plain text in the element, as in the first Quick start example. `mount` 
 | | Layout | Settings, with defaults |
 |---|---|---|
 | <img src="docs/previews/breathe.webp" width="300" alt="The lines layout"> | `'lines'`: centred lines. The default, built in. | none |
-| <img src="docs/previews/columns.webp" width="300" alt="The columns layout"> | `'columns'`: vertical text. Each line is a column, the columns go left to right, and the characters stack top to bottom. A slot grows along its column as its glyph widens, so a column breathes up and down from its middle, or from its anchor word. | `spacing: 1.5`: the distance from one column to the next, in em. |
+| <img src="docs/previews/columns.webp" width="300" alt="The columns layout with four short columns of Chinese"> | `'columns'`: vertical text, made for Chinese, Japanese and Korean. Each line is a column, and the characters stack top to bottom, upright. A slot grows along its column as its glyph widens, so a column breathes up and down from its middle, or from its anchor word. Text that is mostly CJK reads right to left, as in traditional vertical writing, and its characters stack closer. A few short columns look best: 3 or 4 columns of 5 to 8 characters. See [Vertical CJK](#vertical-cjk). | `spacing: 1.5`: the distance from one column to the next, in em. Try 2 for CJK.<br>`columnOrder: 'auto'`: `'rtl'` puts the first line on the right, `'ltr'` on the left. `'auto'` is `'rtl'` when most of the characters are CJK, else `'ltr'`. |
 | <img src="docs/previews/grid.webp" width="300" alt="The grid layout"> | `'grid'`: the lines are rows, each centred, and the characters sit in aligned columns. A wider glyph pushes its column wider and its row taller, so its neighbours move aside and up or down. | none |
-| <img src="docs/previews/ring.webp" width="300" alt="The ring layout"> | `'ring'`: the text runs around one circle, clockwise from the top, the lines one after the other. The ring grows outward as glyphs widen, and the glyphs turn with the circle. The anchor word stays at the top, and the circle grows down, away from it. | `gap: 1`: the space between two lines, in em. |
+| <img src="docs/previews/ring.webp" width="300" alt="The ring layout with one short phrase"> | `'ring'`: the text runs around one circle, clockwise from the top, the lines one after the other. The ring grows outward as glyphs widen, and the glyphs turn with the circle. The anchor word stays at the top, and the circle grows down, away from it. With `fit`, the font size is the largest, up to `maxSize`, at which the text goes around the circle once, with a little space between the letters. A short phrase of 16 to 28 characters gives a full, readable circle. A long text gives a large circle in a small font. | `gap: 1`: the space between two lines, in em. |
 
 ## Effects
 
 `effect` sets what the pointer does. The `motion` option sets when it runs: `'hover'` runs it where the pointer is, `'always'` also runs it with a slow wandering point while the pointer is away, and `'still'` never runs it. With `prefers-reduced-motion: reduce`, no effect runs.
 
-`'breathe'` is built in. The others are [modules](#modules): import them and pass them to `register` first. Give settings with the name:
+`'breathe'` is built in. The others are [modules](#modules): import them and pass them to `register` first. v0.5.0 removed `'wave'`: a page that still asks for it gets `'breathe'` and one console warning. Give settings with the name:
 
 ```js
-import { mount, register } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.4.0/dist/mathglyph.min.js';
-import { ripple } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.4.0/dist/effects/ripple.min.js';
+import { mount, register } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.0/dist/mathglyph.min.js';
+import { ripple } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.0/dist/effects/ripple.min.js';
 
 register(ripple);
 const fx = mount(element, { effect: 'ripple' });               // the default settings
@@ -145,7 +145,6 @@ Distances are in em: 1 em is the font size. Each effect's `speed` is multiplied 
 | <img src="docs/previews/breathe.webp" width="300" alt="The breathe effect"> | `'breathe'`: glyphs near the pointer scramble, and their slots widen. The default, built in. | none |
 | <img src="docs/previews/ripple.webp" width="300" alt="The ripple effect"> | `'ripple'`: rings run out from the pointer, and glyphs swap and pulse as a ring passes them. | `speed: 1`: how fast the rings grow.<br>`radius: 5`: how far a ring runs before it has faded out, in em.<br>`gap: 2.5`: the space between two rings, in em. A moving pointer starts a ring each time the last one is this wide.<br>`pulse: 0.4`: how much a glyph grows as a ring passes, as a share of its size (0.4: 40% larger). It rises a little too. |
 | <img src="docs/previews/firework.webp" width="300" alt="The firework effect"> | `'firework'`: glyphs near the pointer burst outward with a few coloured sparks, then spring back. | `speed: 1`: how fast glyphs fly out and spring back.<br>`radius: 1.7`: how near the pointer comes before a glyph bursts, in em.<br>`power: 0.8`: how far a glyph flies out, in em.<br>`spin: 0.5`: the most a glyph turns as it flies, in radians. About 2 in 5 glyphs turn.<br>`sparks: 2`: the sparks that fly from each glyph. |
-| <img src="docs/previews/wave.webp" width="300" alt="The wave effect"> | `'wave'`: letters near the pointer bob up and down in a soft wave that runs along the text. | `speed: 1`: how fast the wave runs.<br>`radius: 5`: how far from the pointer letters move, in em.<br>`height: 0.22`: how far a letter at the pointer rises and falls, in em.<br>`length: 4.5`: the distance between two crests, in em.<br>`swap: 0.25`: the chance that a letter swaps when a crest lifts it, from 0 to 1. |
 | <img src="docs/previews/lens.webp" width="300" alt="The lens effect"> | `'lens'`: a magnifier follows the pointer. Letters under it grow, the most at its centre, and the letters around them move aside. | `speed: 1`: how fast the lens follows the pointer, grows and shrinks.<br>`radius: 6`: how far the lens reaches, in em. Letters in its inner third grow; the rest only move aside.<br>`zoom: 1.8`: how large the letter at the centre grows, as a scale (1 is its normal size).<br>`swap: true`: the letters near the centre swap to math glyphs as the lens passes over them. |
 | <img src="docs/previews/cascade.webp" width="300" alt="The cascade effect"> | `'cascade'`: letters near the pointer drop from above into their slots, like rain. The columns start one after another, the nearest to the pointer first. The letters of a column fall together, scramble and fade in, then lock in place with a small bounce. | `speed: 1`: how fast the letters fall and lock in, and how often a column starts.<br>`radius: 3`: how near the pointer a letter must be to fall, in em.<br>`fall: 2.5`: how far above its slot a letter starts to fall, in em, at most 3. |
 | <img src="docs/previews/shatter.webp" width="300" alt="The shatter effect"> | `'shatter'`: letters near the pointer break into round dots that scatter a little, then fly back and come together again, often as a new glyph. | `speed: 1`: how fast the dots fly out and back.<br>`radius: 1.8`: how near the pointer a letter must be to break, in em.<br>`scatter: 0.5`: how far the dots fly out, in em, at most 0.6.<br>`dots: 12`: the most dots a letter breaks into. |
@@ -244,18 +243,18 @@ The default, `null`, is Latin only. A letter with no look-alike in the picked sc
 The core, `mathglyph.min.js`, has the `'lines'` layout and the `'breathe'` effect. Each other layout and effect is a module of its own, which exports one object with the module's name. Import the ones you use, and pass them to `register` before `mount`:
 
 ```js
-import { mount, register } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.4.0/dist/mathglyph.min.js';
-import { ring } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.4.0/dist/layouts/ring.min.js';
-import { firework } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.4.0/dist/effects/firework.min.js';
+import { mount, register } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.0/dist/mathglyph.min.js';
+import { ring } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.0/dist/layouts/ring.min.js';
+import { firework } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.0/dist/effects/firework.min.js';
 
 register(ring, firework);
 mount(document.getElementById('hero'), { layout: 'ring', effect: 'firework' });
 ```
 
-With a plain script tag, load the all-in-one build. It has every layout and effect registered, and the Greek and Cyrillic tables:
+With a plain script tag, load the all-in-one build. It has every layout and effect registered, and the Greek, Cyrillic and CJK tables:
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.4.0/dist/mathglyph.all.iife.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.0/dist/mathglyph.all.iife.min.js"></script>
 <script>
   MathGlyph.mount(document.getElementById('hero'), { layout: 'ring', effect: 'firework' });
 </script>
@@ -268,27 +267,26 @@ Every file is in `dist/`, and the links go to jsDelivr. `dist/mathglyph.js` is t
 <!-- numbers: sizes -->
 | File | What it holds | Minified | Gzipped |
 |---|---|--:|--:|
-| [`mathglyph.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.4.0/dist/mathglyph.min.js) | The core, as an ES module: `mount`, `register`, the tables, `'lines'` and `'breathe'`. | 28,572 B | 13,147 B |
-| [`mathglyph.iife.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.4.0/dist/mathglyph.iife.min.js) | The core for a script tag, on the global `MathGlyph`, with the Greek and Cyrillic tables. | 30,419 B | 14,331 B |
-| [`mathglyph.all.iife.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.4.0/dist/mathglyph.all.iife.min.js) | The script-tag build with every layout and effect registered. | 41,180 B | 18,958 B |
-| [`languages.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.4.0/dist/languages.min.js) | The Greek and Cyrillic look-alike tables. | 1,427 B | 901 B |
-| [`layouts/columns.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.4.0/dist/layouts/columns.min.js) | The `'columns'` layout. | 898 B | 514 B |
-| [`layouts/grid.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.4.0/dist/layouts/grid.min.js) | The `'grid'` layout. | 1,920 B | 999 B |
-| [`layouts/ring.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.4.0/dist/layouts/ring.min.js) | The `'ring'` layout. | 1,010 B | 533 B |
-| [`effects/ripple.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.4.0/dist/effects/ripple.min.js) | The `'ripple'` effect. | 1,116 B | 713 B |
-| [`effects/firework.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.4.0/dist/effects/firework.min.js) | The `'firework'` effect. | 1,378 B | 826 B |
-| [`effects/wave.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.4.0/dist/effects/wave.min.js) | The `'wave'` effect. | 993 B | 635 B |
-| [`effects/lens.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.4.0/dist/effects/lens.min.js) | The `'lens'` effect. | 1,040 B | 648 B |
-| [`effects/cascade.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.4.0/dist/effects/cascade.min.js) | The `'cascade'` effect. | 995 B | 611 B |
-| [`effects/shatter.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.4.0/dist/effects/shatter.min.js) | The `'shatter'` effect. | 1,951 B | 1,170 B |
+| [`mathglyph.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.0/dist/mathglyph.min.js) | The core, as an ES module: `mount`, `register`, the tables, `'lines'` and `'breathe'`. | 28,790 B | 13,264 B |
+| [`mathglyph.iife.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.0/dist/mathglyph.iife.min.js) | The core for a script tag, on the global `MathGlyph`, with the Greek, Cyrillic and CJK tables. | 30,975 B | 14,661 B |
+| [`mathglyph.all.iife.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.0/dist/mathglyph.all.iife.min.js) | The script-tag build with every layout and effect registered. | 41,194 B | 19,027 B |
+| [`languages.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.0/dist/languages.min.js) | The Greek, Cyrillic and CJK look-alike tables. | 1,762 B | 1,086 B |
+| [`layouts/columns.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.0/dist/layouts/columns.min.js) | The `'columns'` layout. | 1,253 B | 676 B |
+| [`layouts/grid.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.0/dist/layouts/grid.min.js) | The `'grid'` layout. | 1,920 B | 999 B |
+| [`layouts/ring.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.0/dist/layouts/ring.min.js) | The `'ring'` layout. | 1,027 B | 544 B |
+| [`effects/ripple.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.0/dist/effects/ripple.min.js) | The `'ripple'` effect. | 1,116 B | 713 B |
+| [`effects/firework.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.0/dist/effects/firework.min.js) | The `'firework'` effect. | 1,378 B | 826 B |
+| [`effects/lens.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.0/dist/effects/lens.min.js) | The `'lens'` effect. | 1,040 B | 648 B |
+| [`effects/cascade.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.0/dist/effects/cascade.min.js) | The `'cascade'` effect. | 995 B | 611 B |
+| [`effects/shatter.min.js`](https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.0/dist/effects/shatter.min.js) | The `'shatter'` effect. | 1,951 B | 1,169 B |
 
 ### Package exports
 
-mathglyph is not on npm yet. To install it from GitHub, run `npm install github:8xb300/mathglyph#v0.4.0`. The package exports the core, the languages, and every module by name, with their types:
+mathglyph is not on npm yet. To install it from GitHub, run `npm install github:8xb300/mathglyph#v0.5.0`. The package exports the core, the languages, and every module by name, with their types:
 
 ```js
 import { mount, register } from 'mathglyph';
-import { greek, cyrillic } from 'mathglyph/languages';
+import { greek, cyrillic, cjk } from 'mathglyph/languages';
 import { ring } from 'mathglyph/layouts/ring';
 import { firework } from 'mathglyph/effects/firework';
 ```
@@ -301,7 +299,7 @@ Every option has a default. Pass any of them to `mount`, or change them later wi
 |---|---|---|
 | `lines` | `['plain text, now with', 'a *math* accent']` | One string per row. Wrap words in `*stars*` to highlight them. |
 | `layout` | `'lines'` | How the slots are placed: `'lines'`, `'columns'`, `'grid'` or `'ring'`, a name with settings (`{ name, ...settings }`), or your own layout object (`Layout` in `dist/mathglyph.d.ts`). See [Layouts](#layouts). |
-| `effect` | `'breathe'` | What the pointer does: `'breathe'`, `'ripple'`, `'firework'`, `'wave'`, `'lens'`, `'cascade'` or `'shatter'`, a name with settings (`{ name, ...settings }`), or your own effect object. See [Effects](#effects) and [Custom effects](#custom-effects). |
+| `effect` | `'breathe'` | What the pointer does: `'breathe'`, `'ripple'`, `'firework'`, `'lens'`, `'cascade'` or `'shatter'`, a name with settings (`{ name, ...settings }`), or your own effect object. See [Effects](#effects) and [Custom effects](#custom-effects). |
 | `scripts` | `null` | Scripts that swaps take look-alike letters from: `['latin', 'greek', 'cyrillic']`, or names with weights, like `{ latin: 2, greek: 1 }`. `null` is Latin only. See [Mixed scripts](#mixed-scripts). |
 | `palette` | `'pastel'` | `'pastel'`, `'ember'`, `'ice'`, `'mono'`, `'shimmer'`, or an array of CSS colours. `'shimmer'` is the colours of the glyphs in the background of 8xb300.org. Its navy is `#6475d8`, lightened from the site's `#131836` so it reads on dark backgrounds. |
 | `substitute` | `0.35` | Share of letters swapped at rest. |
@@ -317,7 +315,7 @@ Every option has a default. Pass any of them to `mount`, or change them later wi
 | `tokens` | `true` | Also swap in short notation like ∫₀, ℏω, ⊗², &&. Only with `expand`. |
 | `symbolMix` | `0.15` | Share of swaps that use the symbol groups instead of a math-alphabet or Greek version of the same letter. |
 | `legible` | `0.6` | How often a swapped letter uses a symbol that looks like it: ∃ for E, ∪ for U, ∅ for O. |
-| `lookalikes` | `null` | Extra look-alikes, `{ char: 'glyphs' }`, merged over the built-in Latin table. Also how you plug in the Greek and Cyrillic tables. See [Languages](#languages). |
+| `lookalikes` | `null` | Extra look-alikes, `{ char: 'glyphs' }`, merged over the built-in Latin table. Also how you plug in the Greek, Cyrillic and CJK tables. See [Languages](#languages). |
 | `words` | `0.7` | How often words with a symbol meaning swap whole. Needs `expand`. |
 | `wordMap` | `null` | Extra word → symbol pairs, merged over the English map. |
 | `motion` | `'hover'` | When the effect runs. `'hover'`: where the pointer is. `'always'`: also with a slow wandering point while the pointer is away, and with a slow reshuffle. `'still'`: no animation. |
@@ -334,7 +332,7 @@ Every option has a default. Pass any of them to `mount`, or change them later wi
 | `highlight` | `'#ffffff'` | Colour of highlighted words. |
 | `font` | system monospace stack | CSS `font-family` stack. See [Fonts](#fonts). |
 | `fonts` | `[]` | Fonts to load. See [Fonts](#fonts). |
-| `fit` | `true` | Scale the font so the text fits the container width. |
+| `fit` | `true` | Scale the font so the text fits the container width. In `'ring'`, the circle fits it. |
 | `maxSize` | `44` | Largest font size in px for `fit`. |
 
 ### Labels
@@ -420,7 +418,7 @@ The module also exports its built-in tables:
 Use them to build on the defaults:
 
 ```js
-import { mount, sets, palettes } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.4.0/dist/mathglyph.min.js';
+import { mount, sets, palettes } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.0/dist/mathglyph.min.js';
 
 mount(element, {
   symbols: Object.keys(sets).filter((name) => name !== 'greek'),  // every group but Greek
@@ -458,11 +456,11 @@ The default stack already names 'Noto Sans Math', so it slots in after the monos
 
 Lines are split into grapheme clusters with `Intl.Segmenter`, so any script works, and so do emoji. Widths are measured, so wide characters (CJK, full-width forms) get wide slots.
 
-The built-in look-alike table covers Latin. Greek and Cyrillic tables ship as a separate module, `dist/languages.min.js` (under 1 KB gzipped), so pages that don't need them don't load them. Plug them in with `lookalikes`:
+The built-in look-alike table covers Latin. Greek, Cyrillic and CJK tables ship as a separate module, `dist/languages.min.js` (about 1 KB gzipped), so pages that don't need them don't load them. Plug them in with `lookalikes`:
 
 ```js
-import { mount } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.4.0/dist/mathglyph.min.js';
-import { greek, cyrillic } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.4.0/dist/languages.min.js';
+import { mount } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.0/dist/mathglyph.min.js';
+import { greek, cyrillic } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.0/dist/languages.min.js';
 
 mount(element, {
   lines: ['каждый знак — *переменная*'],
@@ -470,11 +468,31 @@ mount(element, {
 });
 ```
 
-The script-tag builds already include both, as `MathGlyph.greek` and `MathGlyph.cyrillic`.
+The script-tag builds already include them, as `MathGlyph.greek`, `MathGlyph.cyrillic` and `MathGlyph.cjk`.
 
-These tables say what Greek and Cyrillic letters swap to. To mix Greek and Cyrillic letters into Latin text, see [Mixed scripts](#mixed-scripts).
+These tables say what Greek, Cyrillic and CJK characters swap to. To mix Greek and Cyrillic letters into Latin text, see [Mixed scripts](#mixed-scripts).
 
 Greek letters also get math-alphabet Greek (𝛂 𝜷 𝝅), with or without the table. Accented letters (é, ά, й) swap like their base letter. Letters from other scripts swap to symbols from the chosen groups.
+
+### Vertical CJK
+
+Chinese, Japanese and Korean are sometimes written in vertical columns, and the `'columns'` layout is made for them. Keep the text short, give each column a few characters, and let `fit` choose a large font:
+
+```js
+import { mount, register } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.0/dist/mathglyph.min.js';
+import { columns } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.0/dist/layouts/columns.min.js';
+import { cjk } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.5.0/dist/languages.min.js';
+
+register(columns);
+mount(element, {
+  layout: { name: 'columns', spacing: 2 },
+  lines: ['一字一变量', '一句一证明', '符号*呼吸*着', '又归于平淡'],
+  anchor: '呼吸',
+  lookalikes: cjk,
+});
+```
+
+The first line is the rightmost column. The characters stay upright. A CJK slot keeps its full width when it swaps to a narrow symbol, so the columns do not shrink. The `cjk` table holds characters made of straight strokes and boxes: 一 → −, 二 → =, 三 → ≡, 十 → +, 口 → □, 田 → ⊞, 〇 → ∘ and a few more. A Hangul syllable swaps like its first consonant, so 아 and 오 can show ∘, and 마 can show □. Other characters swap to symbols. Put the anchor near the middle of its column: the column grows out from it. Set `lang` on the element (`zh-Hans`, `ja` or `ko`), so the browser picks the right font for Han characters.
 
 You can add your own tables:
 
@@ -543,7 +561,6 @@ The same hover test with each effect, in the `'lines'` layout:
 | `'breathe'` | 3.02 ms | 28% | 0 |
 | `'ripple'` | 3.45 ms | 31% | 0 |
 | `'firework'` | 3.53 ms | 32% | 0 |
-| `'wave'` | 2.96 ms | 27% | 0 |
 | `'lens'` | 3.74 ms | 34% | 0 |
 | `'cascade'` | 3.27 ms | 31% | 0 |
 | `'shatter'` | 4.25 ms | 37% | 0 |

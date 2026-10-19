@@ -18,7 +18,7 @@ const outputs = ['dist/mathglyph.js', 'dist/mathglyph.min.js', 'dist/languages.m
 await build({ ...common, format: 'esm', outfile: 'dist/mathglyph.js' });
 await build({ ...common, format: 'esm', minify: true, outfile: 'dist/mathglyph.min.js' });
 await build({ ...common, entryPoints: ['src/languages.js'], format: 'esm', minify: true, outfile: 'dist/languages.min.js' });
-// The script-tag build carries the Greek and Cyrillic tables too: MathGlyph.greek, MathGlyph.cyrillic.
+// The script-tag build carries the look-alike tables too: MathGlyph.greek, MathGlyph.cyrillic, MathGlyph.cjk.
 await build({
   ...common,
   entryPoints: undefined,

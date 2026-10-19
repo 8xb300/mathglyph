@@ -34,7 +34,7 @@ export interface LabelCell {
   column: number;
 }
 
-export type EffectName = 'breathe' | 'ripple' | 'firework' | 'wave' | 'lens' | 'cascade' | 'shatter';
+export type EffectName = 'breathe' | 'ripple' | 'firework' | 'lens' | 'cascade' | 'shatter';
 export type LayoutName = 'lines' | 'columns' | 'grid' | 'ring';
 export type ScriptName = 'latin' | 'greek' | 'cyrillic';
 
@@ -220,7 +220,8 @@ export interface Options {
   lines?: string[];
   /**
    * How the slots are placed. 'lines' (default): centred lines. 'columns': vertical columns
-   * (setting `spacing`: em from one column to the next, default 1.5). 'grid': a grid where a wide
+   * (settings `spacing`: em from one column to the next, default 1.5; `columnOrder`: 'rtl', 'ltr'
+   * or 'auto', default 'auto': right to left when most characters are CJK). 'grid': a grid where a wide
    * glyph pushes its row and column apart. 'ring': around a circle (setting `gap`: em between two
    * lines, default 1). A name needs its module registered (see `register`), except 'lines'.
    * `{ name, ...settings }` sets the layout's settings.
@@ -228,7 +229,8 @@ export interface Options {
   layout?: LayoutName | Layout | ({ name: LayoutName | string } & Record<string, unknown>);
   /**
    * What the pointer does. 'breathe' (default): glyphs near the pointer scramble and their slots
-   * widen. A name needs its module registered (see `register`), except 'breathe'.
+   * widen. 'wave' was removed in v0.5.0: it gives 'breathe' and a console warning. A name needs
+   * its module registered (see `register`), except 'breathe'.
    * `{ name, ...settings }` sets the effect's settings.
    */
   effect?: EffectName | Effect | ({ name: EffectName | string } & Record<string, unknown>);

@@ -16,6 +16,7 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { root, serveRepo } from './run.mjs';
+import { cjk } from '../src/languages.js';
 
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
@@ -172,7 +173,7 @@ async function demoChecks() {
 // One layout with one effect on the bench page, with the README text and its anchor: the real mouse
 // crosses every line and leaves, then the text must be plain again and no timer or frame may run.
 // With reduced motion the pointer must change nothing at all.
-async function combo(context, layout, effect, reduced, options = '') {
+async function combo(context, layout, effect, reduced, options = '', label = options) {
   const page = await context.newPage();
   if (reduced) await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto(`${base}/bench/page.html?impl=canvas&mode=preview&rest=plain&intro=0&layout=${layout}&effect=${effect}` +
@@ -206,7 +207,7 @@ async function combo(context, layout, effect, reduced, options = '') {
   await sleep(IDLE_MS);
   const wakeups = (await page.evaluate(() => window.__wakeups)) - before;
   await page.close();
-  const name = `${layout} × ${effect}${reduced ? ', reduced motion' : ''}${options && `, ${options}`}`;
+  const name = `${layout} × ${effect}${reduced ? ', reduced motion' : ''}${label && `, ${label}`}`;
   if (reduced) report(`${name}: the pointer changes nothing, then idle`, !moved && back && !wakeups, `: ${wakeups} wakeups`);
   else report(`${name}: hover, leave, plain again, then idle`, moved && back && !wakeups,
     `: ${moved ? '' : 'nothing moved, '}${back ? '' : 'not plain, '}${wakeups} wakeups`);
@@ -220,6 +221,17 @@ async function matrix() {
   for (const effect of EFFECTS) await combo(context, 'lines', effect, true);
   // The most varied boxes: big jitter, wide spans, a box on most woken glyphs.
   for (const layout of LAYOUTS) await combo(context, layout, 'breathe', false, '{"boxJitter":1,"boxSpan":4,"box":1}');
+  // The gallery's cards: short Chinese columns with the CJK table, and a short ring, both anchored.
+  for (const effect of EFFECTS) {
+    if (LAYOUTS.includes('columns')) {
+      const options = { lines: ['一字一变量', '一句一证明', '符号*呼吸*着', '又归于平淡'], anchor: '呼吸', lookalikes: cjk, maxSize: 34 };
+      await combo(context, 'columns', effect, false, JSON.stringify(options), 'the CJK card');
+    }
+    if (LAYOUTS.includes('ring')) {
+      const options = { lines: ['every letter goes *round*'], anchor: 'round', maxSize: 30 };
+      await combo(context, 'ring', effect, false, JSON.stringify(options), 'the ring card');
+    }
+  }
   await context.close();
 }
 

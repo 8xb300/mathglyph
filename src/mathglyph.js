@@ -226,6 +226,7 @@ function greekVariant(ch) {
 }
 
 function isLatin(ch) { return /^[A-Za-z]$/.test(ch); }
+var WIDE = /[\p{scx=Han}\p{scx=Hiragana}\p{scx=Katakana}\p{scx=Hangul}]/u;
 
 // Where `word` first appears in `str` as a whole word, else where it first appears at all.
 var LETTER = /[\p{L}\p{M}\p{N}]/u;
@@ -316,6 +317,8 @@ var LINES = {
 };
 
 var EFFECTS = { breathe: BREATHE }, LAYOUTS = { lines: LINES }, warned = {};
+// Modules that shipped once and were removed. An option that names one gets the default.
+var REMOVED = { wave: "the 'wave' effect was removed in v0.5.0" };
 
 // Adds effects (objects with glyph()) and layouts (objects with place()), so options can name them.
 export function register() {
@@ -336,7 +339,11 @@ function resolve(table, value, fallback) {
     mod = table[name];
     if (typeof value === 'object') own = value;
     if (!mod) {
-      if (!warned[name]) { warned[name] = 1; console.warn('mathglyph: nothing named ' + name + ' is registered'); }
+      if (!warned[name]) {
+        warned[name] = 1;
+        console.warn(REMOVED[name] ? 'mathglyph: ' + REMOVED[name] + ', so ' + fallback + ' is used'
+          : 'mathglyph: nothing named ' + name + ' is registered');
+      }
       mod = table[fallback];
       own = {};
     }
@@ -483,7 +490,7 @@ export function mount(root, options) {
     if (!o.expand) return (plainWidth(c.ch, c.grid) + pad) * fs;
     if (c.gone) return 0;
     if (c.g === ' ') return (o.wordSpacing + pad) * fs;
-    return (Math.max(monoEm, glyphW(c.g)) + o.tracking + (c.box ? BOX_PAD : 0) + (c.pad ? SPACE_PAD : 0) + pad) * fs;
+    return (Math.max(c.min, glyphW(c.g)) + o.tracking + (c.box ? BOX_PAD : 0) + (c.pad ? SPACE_PAD : 0) + pad) * fs;
   }
 
   function retarget(c) {
@@ -718,7 +725,7 @@ export function mount(root, options) {
         // cx, cy, r: where the layout puts the slot. tf: the effect changes it, by tx, ty (offset),
         // ts (scale), tr (rotation) and ta (alpha); tp: it paints it; tc: that changed this frame.
         var c = {
-          ch: p.ch, hl: p.hl, line: li, col: col, len: parsed.length, word: null, grid: 1, pw: 0,
+          ch: p.ch, hl: p.hl, line: li, col: col, len: parsed.length, word: null, grid: 1, pw: 0, min: 0,
           g: p.ch, color: null, box: false, pad: false, gone: false, label: false,
           hot: 0, inHot: false, settle: 0, settled: true, mix: false, anchor: false,
           w: 0, w0: 0, tw: -1, v: 0, peak: 0, stiff: SPRING, x: 0, moving: false, prev: null,
@@ -805,6 +812,8 @@ export function mount(root, options) {
       var natural = 0, grid = 0, mid = 0;
       L.cells.forEach(function (c, i) {
         c.grid = Math.max(1, Math.round(glyphW(c.ch) / monoEm));
+        // A Chinese, Japanese or Korean slot keeps its full width when it swaps to a narrow symbol.
+        c.min = WIDE.test(c.ch) ? Math.max(monoEm, glyphW(c.ch)) : monoEm;
         if (i === L.a0) mid = natural;
         if (i === L.a1) mid = (mid + natural) / 2;
         var n = plainWidth(c.ch, 0), g = plainWidth(c.ch, c.grid);

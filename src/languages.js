@@ -19,3 +19,12 @@ export const cyrillic = {
   'т': 'τ⊤', 'у': 'γ𝕪', 'ф': 'ϕφ', 'х': 'χ×𝕩', 'ч': '𝟜', 'ш': 'ω', 'ь': '♭', 'э': '϶∍',
   'І': '∣𝕀', 'і': 'ι', 'Ј': '⌋', 'ј': '⌋'
 };
+
+// Chinese, Japanese and Korean look-alikes: characters made of straight strokes and boxes. A Hangul
+// syllable swaps as its first consonant (ᄋ in 아, 이, 오), so the table holds the leading jamo.
+export const cjk = {
+  '一': '−', '二': '=', '三': '≡', '十': '+', '土': '±', '干': '∓', '上': '⊥', '下': '⊤', '丁': '⊤',
+  '人': '∧', '入': '∧', '口': '□', '日': '⊟', '目': '⊟', '田': '⊞', '回': '⊡', '中': 'Φ', '〇': '∘○',
+  'ニ': '=', 'ト': '⊢', 'ロ': '□', '。': '∘',
+  'ᄀ': '⌝', 'ᄂ': '∟', 'ᄃ': '⊏', 'ᄆ': '□', 'ᄇ': '⊔', 'ᄉ': '∧', 'ᄋ': '∘○', 'ᄌ': '⊼', 'ᄎ': '⊼', 'ᄏ': '⌝'
+};

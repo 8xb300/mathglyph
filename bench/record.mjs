@@ -18,6 +18,7 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { root, serveRepo } from './run.mjs';
+import { cjk } from '../src/languages.js';
 
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
@@ -52,12 +53,15 @@ const MAIN = {
 const TEXT = ['every letter is', 'a small *variable*', 'in a long proof'];
 const PREVIEWS = {
   breathe: { lines: TEXT },
-  columns: { layout: 'columns', lines: ['every', 'line', 'is a', 'column', 'of', '*glyphs*'] },
+  columns: {
+    layout: 'columns',
+    lines: ['一字一变量', '一句一证明', '符号*呼吸*着', '又归于平淡'],
+    options: { layout: { name: 'columns', spacing: 2 }, anchor: '呼吸', lookalikes: cjk, maxSize: 40 },
+  },
   grid: { layout: 'grid', lines: ['every glyph has', 'its own *column*', 'and its own row'] },
-  ring: { layout: 'ring', lines: ['every letter', 'goes *round*', 'the circle'] },
+  ring: { layout: 'ring', lines: ['every letter goes *round*'], options: { anchor: 'round', maxSize: 40 } },
   ripple: { effect: 'ripple', lines: TEXT },
   firework: { effect: 'firework', lines: TEXT },
-  wave: { effect: 'wave', lines: TEXT },
   lens: { effect: 'lens', lines: TEXT },
   cascade: { effect: 'cascade', lines: TEXT },
   shatter: { effect: 'shatter', lines: TEXT },
@@ -121,7 +125,7 @@ async function record(browser, base, spec, options = {}) {
     await page.goto(`${base}/bench/page.html?${query}`);
     if (spec.css) await page.addStyleTag({ content: spec.css });
     await page.evaluate(() => window.__ready);
-    if (options.lines) await page.evaluate((o) => window.__fx.update(o), { ...spec.options, lines: options.lines });
+    if (options.lines) await page.evaluate((o) => window.__fx.update(o), { ...spec.options, ...options.options, lines: options.lines });
     await sleep(500);
     const box = await page.locator('#fx').boundingBox();
     const clip = { x: Math.floor(box.x), y: Math.floor(box.y), width: Math.ceil(box.width), height: Math.ceil(box.height) };
