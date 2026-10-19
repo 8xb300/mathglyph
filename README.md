@@ -295,9 +295,10 @@ npm run build
 
 The build uses esbuild. It writes `dist/` and copies the module and the font into `docs/`, the demo page on GitHub Pages. Source is in `src/`.
 
-## Credits
+## Inspired by
 
-Inspired by the teaser for Corca's upcoming math font (@Corca_math on Twitter).
+- [@illo](https://x.com/illo) of [Corca](https://x.com/Corca_math): the teaser for Corca's monospace math font.
+- [Andrea Catanzaro](https://www.instagram.com/p/DcI25DONxvd/) of Vercel: the bounding-box take on the effect.
 
 ## Licence
 
