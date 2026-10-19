@@ -6,6 +6,8 @@
   Each character's slot grows to fit the glyph it shows, so lines breathe wider
   as wide symbols swap in. Moving the pointer over the text scrambles the
   characters near it.
+  With rest: 'plain' the text is plain until the pointer touches it, and goes
+  back to plain a few seconds after the pointer leaves.
 
   Usage:
     import { mount } from './mathglyph.js';
@@ -116,7 +118,7 @@ var PALETTES = {
   ember:  ['#f2a65a', '#e0705f', '#d9c06a', '#c98bd9', '#7fc4b0', '#f3d3a4'],
   ice:    ['#7fd1e8', '#8ea8ff', '#b39cff', '#6fe0c2', '#c6d4ff', '#5aa9e6'],
   mono:   ['#f2f2f2', '#c4c4c4', '#a3a3a3', '#dedede', '#b5b5b5', '#8f8f8f'],
-  shimmer: ['#a70947', '#ff0000', '#ffa500', '#ffe135', '#008000', '#131836', '#1e90ff']
+  shimmer: ['#a70947', '#ff0000', '#ffa500', '#ffe135', '#008000', '#6475d8', '#1e90ff']
 };
 
 var MONO_STACK = "ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'JetBrains Mono', " +
@@ -140,6 +142,8 @@ var DEFAULTS = {
   words: 0.7,
   wordMap: null,
   motion: 'hover',
+  rest: 'glyphs',
+  revert: 2,
   intro: true,
   speed: 1,
   hoverRadius: 2.6,
@@ -159,6 +163,8 @@ var CELL_H = 1.24;     // box height, em
 var LABEL_EM = 0.26;   // label font size, em
 var TICK = 60;         // ms between scramble steps
 var EASE_MS = 260;     // slot width transition, ms
+var REVERT_EASE_MS = 520;  // slot width transition when rest: 'plain' goes back to plain, ms
+var REVERT_WAVE_MS = 700;  // spread of the staggered wave back to plain, ms
 
 var segmenter = typeof Intl !== 'undefined' && Intl.Segmenter
   ? new Intl.Segmenter(undefined, { granularity: 'grapheme' }) : null;
@@ -221,6 +227,7 @@ export function mount(root, options) {
   var W = contentWidth(root), H = 0, dpr = 1, fs = 16, lineH = 24, boxH = 20, monoPx = 9.6;
   var fontPx = '', labelPx = '';
   var decoding = false, decodeStart = 0, idleAcc = 0, lastTick = 0;
+  var reverting = [], revertStart = 0, revertTimer = 0;
   var raf = 0, dead = false, onScreen = true, needMeasure = false, needLayout = false;
   var pointer = null, pointerMoved = false, rect = null;
   var mq = win.matchMedia ? win.matchMedia('(prefers-reduced-motion: reduce)') : null;
@@ -329,6 +336,7 @@ export function mount(root, options) {
     if (!animated()) { c.w = tw; return; }
     c.w0 = c.w;
     c.t0 = performance.now();
+    c.ease = c.reverting ? REVERT_EASE_MS : EASE_MS;
     if (!c.moving) { c.moving = true; moving.push(c); }
   }
 
@@ -387,6 +395,7 @@ export function mount(root, options) {
 
   // Repaint one character, keeping whole-word swaps consistent.
   function refresh(c, scramble) {
+    if (!scramble && rests(c)) { sleep(c); return; }
     var w = c.word;
     if (!w) { paint(c, roll(c, scramble)); return; }
     if (scramble) {
@@ -405,9 +414,55 @@ export function mount(root, options) {
 
   function settleAll() {
     cells.forEach(function (c) {
-      if (!c.word) paint(c, roll(c, false));
+      if (rests(c)) { if (!c.word || c === c.word.cells[0]) sleep(c); }
+      else if (!c.word) paint(c, roll(c, false));
       else if (c === c.word.cells[0]) rollWord(c.word);
     });
+  }
+
+  // ---- rest: 'plain': only characters the pointer touched show glyphs ----
+  // A word wakes and sleeps as one, so its folded letters come back together.
+  function rests(c) { return o.rest === 'plain' && !c.woke; }
+
+  function wakeCell(c) {
+    if (c.woke || o.rest !== 'plain') return;
+    (c.word ? c.word.cells : [c]).forEach(function (x) { x.woke = true; });
+  }
+
+  function sleep(c) {
+    var w = c.word;
+    if (w) w.on = false;
+    (w ? w.cells : [c]).forEach(function (x) {
+      x.woke = false;
+      paint(x, { g: x.ch, col: null, box: false });
+    });
+  }
+
+  function cancelRevert() {
+    if (revertTimer) { win.clearTimeout(revertTimer); revertTimer = 0; }
+    reverting.forEach(function (c) { c.reverting = false; });
+    reverting = [];
+  }
+
+  // Woken characters go back to plain in a wave from left to right.
+  function startRevert() {
+    revertTimer = 0;
+    var sp = Math.max(o.speed, 0.25);
+    cells.forEach(function (c) {
+      if (!c.woke || c.hot || c.reverting || (c.word && c !== c.word.cells[0])) return;
+      var off = (maxLen - c.len) / 2 + c.col;
+      c.settle = ((off / maxLen) * REVERT_WAVE_MS + Math.random() * 150) / sp;
+      (c.word ? c.word.cells : [c]).forEach(function (x) { x.reverting = true; });
+      reverting.push(c);
+    });
+    revertStart = 0;
+    wake();
+  }
+
+  function scheduleRevert() {
+    cancelRevert();
+    if (o.rest !== 'plain' || !animated()) return;
+    if (cells.some(function (c) { return c.woke; })) revertTimer = win.setTimeout(startRevert, o.revert * 1000);
   }
 
   // ---- text model ----
@@ -419,6 +474,7 @@ export function mount(root, options) {
     hot = [];
     moving = [];
     dirty = [];
+    cancelRevert();
     src.forEach(function (text, li) {
       var parsed = parseLine(String(text));
       var L = { cells: [], top: 0, left: 0, width: 0, natural: 0, grid: 0 };
@@ -428,7 +484,8 @@ export function mount(root, options) {
           ch: p.ch, hl: p.hl, line: li, col: col, len: parsed.length, word: null, grid: 1,
           g: p.ch, color: null, box: false, pad: false, gone: false, label: false,
           hot: 0, inHot: false, settle: 0, settled: true,
-          w: 0, w0: 0, tw: -1, t0: 0, x: 0, moving: false, prev: null
+          w: 0, w0: 0, tw: -1, t0: 0, ease: EASE_MS, x: 0, moving: false, prev: null,
+          woke: false, reverting: false
         };
         at[offset] = col;
         offset += p.ch.length;
@@ -685,7 +742,7 @@ export function mount(root, options) {
   function animated() { return !reduce && o.motion !== 'still'; }
   function active() { return !dead && onScreen && !document.hidden; }
   function busy() {
-    return moving.length || hot.length || decoding || (o.motion === 'always' && animated());
+    return moving.length || hot.length || decoding || reverting.length || (o.motion === 'always' && animated());
   }
 
   function wake() {
@@ -698,7 +755,7 @@ export function mount(root, options) {
     if (needMeasure) measure();
     if (needLayout) layout();
     if (pointer && pointerMoved) { pointerMoved = false; scan(now); }
-    if (animated() && (hot.length || decoding || o.motion === 'always')) {
+    if (animated() && (hot.length || decoding || reverting.length || o.motion === 'always')) {
       if (!lastTick || now - lastTick > 4 * TICK) lastTick = now - TICK;
       while (now - lastTick >= TICK) { lastTick += TICK; tick(lastTick); }
     } else {
@@ -712,7 +769,7 @@ export function mount(root, options) {
   function stepWidths(now) {
     var still = [];
     for (var i = 0; i < moving.length; i++) {
-      var c = moving[i], p = Math.max(0, (now - c.t0) / EASE_MS);
+      var c = moving[i], p = Math.max(0, (now - c.t0) / c.ease);
       if (p >= 1) { c.w = c.tw; c.moving = false; }
       else { c.w = c.w0 + (c.tw - c.w0) * (1 - Math.pow(1 - p, 4)); still.push(c); }
       markDirty(c.line);
@@ -730,6 +787,18 @@ export function mount(root, options) {
         else { c.hot = 0; c.inHot = false; refresh(c, false); }
       }
       hot = still;
+    }
+
+    if (reverting.length) {
+      if (!revertStart) revertStart = now;
+      var left = [];
+      for (var j = 0; j < reverting.length; j++) {
+        var rc = reverting[j];
+        if (now < revertStart + rc.settle) { left.push(rc); continue; }
+        sleep(rc);
+        (rc.word ? rc.word.cells : [rc]).forEach(function (x) { x.reverting = false; });
+      }
+      reverting = left;
     }
 
     if (decoding) {
@@ -765,6 +834,7 @@ export function mount(root, options) {
       for (var i = 0; i < L.cells.length; i++) {
         var c = L.cells[i], dx = (L.left + c.x + c.w / 2 - pointer.x) / rx;
         if (dx * dx < room) {
+          wakeCell(c);
           c.hot = until;
           if (!c.inHot) { c.inHot = true; hot.push(c); }
         }
@@ -777,14 +847,17 @@ export function mount(root, options) {
     if (!rect) rect = renderer.el.getBoundingClientRect();
     pointer = { x: e.clientX - rect.left, y: e.clientY - rect.top };
     pointerMoved = true;
+    cancelRevert();
     wake();
   }
-  function onLeave() { pointer = null; rect = null; }
+  function onLeave() { pointer = null; rect = null; scheduleRevert(); }
   function onScroll() { rect = null; }
   function onVisibility() { wake(); }
   function onMotionPref() {
     reduce = mq.matches;
     if (reduce) {
+      cancelRevert();
+      cells.forEach(function (c) { c.woke = false; });
       hot.forEach(function (c) { c.hot = 0; c.inHot = false; });
       hot = [];
       decoding = false;
@@ -796,6 +869,8 @@ export function mount(root, options) {
   }
 
   function replay() {
+    cancelRevert();
+    cells.forEach(function (c) { c.woke = false; });
     if (!animated()) { decoding = false; settleAll(); wake(); return; }
     var sp = Math.max(o.speed, 0.25);
     cells.forEach(function (c) {
@@ -814,6 +889,10 @@ export function mount(root, options) {
     var rebuild = linesChanged || 'wordMap' in next;
     var refont = ('font' in next && next.font !== o.font) || 'fonts' in next;
     Object.assign(o, next);
+    if ('rest' in next) {
+      cells.forEach(function (c) { c.woke = false; });
+      cancelRevert();
+    }
     tables();
     if (refont) loadFonts();
     if (rebuild) build();
@@ -828,6 +907,7 @@ export function mount(root, options) {
 
   function destroy() {
     dead = true;
+    cancelRevert();
     if (raf) win.cancelAnimationFrame(raf);
     if (io) io.disconnect();
     if (ro) ro.disconnect();

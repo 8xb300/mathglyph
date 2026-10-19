@@ -87,7 +87,7 @@ const LANGUAGES = {
 // The options the page can change, in the order "Your config" lists them.
 const SHOWN = [
   'lines', 'fonts', 'font', 'wordMap', 'lookalikes', 'palette', 'substitute', 'color', 'box', 'boxStyle', 'labels',
-  'symbols', 'tokens', 'symbolMix', 'legible', 'words', 'motion', 'intro', 'speed', 'hoverRadius',
+  'symbols', 'tokens', 'symbolMix', 'legible', 'words', 'motion', 'rest', 'revert', 'intro', 'speed', 'hoverRadius',
   'expand', 'fit', 'maxSize',
 ];
 
@@ -96,9 +96,10 @@ const hero = $('hero');
 
 // What the library does with no options. An empty wordMap adds nothing to the English map.
 const BASE = { ...MathGlyph.defaults, wordMap: {} };
-const state = { ...BASE, lines: LANGUAGES.en.lines, fonts: [MATH_FONT] };
+// Plain at rest is the first view: it shows the slots grow and shrink best.
+const state = { ...BASE, lines: LANGUAGES.en.lines, fonts: [MATH_FONT], rest: 'plain' };
 let tableName = null;  // which entry of TABLES is in state.lookalikes
-const fx = MathGlyph.mount(hero, { lines: state.lines, fonts: state.fonts });
+const fx = MathGlyph.mount(hero, { lines: state.lines, fonts: state.fonts, rest: state.rest });
 
 function set(patch) {
   Object.assign(state, patch);
@@ -137,6 +138,8 @@ for (const el of document.querySelectorAll('[data-opt]')) {
     el.addEventListener('change', () => set({ [key]: el.type === 'checkbox' ? el.checked : el.value }));
   }
 }
+$('rest-plain').checked = state.rest === 'plain';
+$('rest-plain').addEventListener('change', () => set({ rest: $('rest-plain').checked ? 'plain' : 'glyphs' }));
 $('palette').addEventListener('change', showSwatches);
 showSwatches();
 

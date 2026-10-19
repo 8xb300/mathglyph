@@ -1,4 +1,4 @@
-/*! mathglyph v0.1.1 | MIT | github.com/8xb300/mathglyph */
+/*! mathglyph v0.2.0 | MIT | github.com/8xb300/mathglyph */
 
 // src/mathglyph.js
 var BASE = { bold: 119808, italic: 119860, script: 119964, fraktur: 120068, double: 120120 };
@@ -264,7 +264,7 @@ var PALETTES = {
   ember: ["#f2a65a", "#e0705f", "#d9c06a", "#c98bd9", "#7fc4b0", "#f3d3a4"],
   ice: ["#7fd1e8", "#8ea8ff", "#b39cff", "#6fe0c2", "#c6d4ff", "#5aa9e6"],
   mono: ["#f2f2f2", "#c4c4c4", "#a3a3a3", "#dedede", "#b5b5b5", "#8f8f8f"],
-  shimmer: ["#a70947", "#ff0000", "#ffa500", "#ffe135", "#008000", "#131836", "#1e90ff"]
+  shimmer: ["#a70947", "#ff0000", "#ffa500", "#ffe135", "#008000", "#6475d8", "#1e90ff"]
 };
 var MONO_STACK = "ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'JetBrains Mono', 'DejaVu Sans Mono', 'Liberation Mono', 'Noto Sans Mono'";
 var DEFAULTS = {
@@ -285,6 +285,8 @@ var DEFAULTS = {
   words: 0.7,
   wordMap: null,
   motion: "hover",
+  rest: "glyphs",
+  revert: 2,
   intro: true,
   speed: 1,
   hoverRadius: 2.6,
@@ -303,6 +305,8 @@ var CELL_H = 1.24;
 var LABEL_EM = 0.26;
 var TICK = 60;
 var EASE_MS = 260;
+var REVERT_EASE_MS = 520;
+var REVERT_WAVE_MS = 700;
 var segmenter = typeof Intl !== "undefined" && Intl.Segmenter ? new Intl.Segmenter(void 0, { granularity: "grapheme" }) : null;
 function graphemes(s) {
   return segmenter ? Array.from(segmenter.segment(s), function(x) {
@@ -363,6 +367,7 @@ function mount(root, options) {
   var W = contentWidth(root), H = 0, dpr = 1, fs = 16, lineH = 24, boxH = 20, monoPx = 9.6;
   var fontPx = "", labelPx = "";
   var decoding = false, decodeStart = 0, idleAcc = 0, lastTick = 0;
+  var reverting = [], revertStart = 0, revertTimer = 0;
   var raf = 0, dead = false, onScreen = true, needMeasure = false, needLayout = false;
   var pointer = null, pointerMoved = false, rect = null;
   var mq = win.matchMedia ? win.matchMedia("(prefers-reduced-motion: reduce)") : null;
@@ -467,6 +472,7 @@ function mount(root, options) {
     }
     c.w0 = c.w;
     c.t0 = performance.now();
+    c.ease = c.reverting ? REVERT_EASE_MS : EASE_MS;
     if (!c.moving) {
       c.moving = true;
       moving.push(c);
@@ -525,6 +531,10 @@ function mount(root, options) {
     }
   }
   function refresh(c, scramble) {
+    if (!scramble && rests(c)) {
+      sleep(c);
+      return;
+    }
     var w = c.word;
     if (!w) {
       paint(c, roll(c, scramble));
@@ -550,9 +560,60 @@ function mount(root, options) {
   }
   function settleAll() {
     cells.forEach(function(c) {
-      if (!c.word) paint(c, roll(c, false));
+      if (rests(c)) {
+        if (!c.word || c === c.word.cells[0]) sleep(c);
+      } else if (!c.word) paint(c, roll(c, false));
       else if (c === c.word.cells[0]) rollWord(c.word);
     });
+  }
+  function rests(c) {
+    return o.rest === "plain" && !c.woke;
+  }
+  function wakeCell(c) {
+    if (c.woke || o.rest !== "plain") return;
+    (c.word ? c.word.cells : [c]).forEach(function(x) {
+      x.woke = true;
+    });
+  }
+  function sleep(c) {
+    var w = c.word;
+    if (w) w.on = false;
+    (w ? w.cells : [c]).forEach(function(x) {
+      x.woke = false;
+      paint(x, { g: x.ch, col: null, box: false });
+    });
+  }
+  function cancelRevert() {
+    if (revertTimer) {
+      win.clearTimeout(revertTimer);
+      revertTimer = 0;
+    }
+    reverting.forEach(function(c) {
+      c.reverting = false;
+    });
+    reverting = [];
+  }
+  function startRevert() {
+    revertTimer = 0;
+    var sp = Math.max(o.speed, 0.25);
+    cells.forEach(function(c) {
+      if (!c.woke || c.hot || c.reverting || c.word && c !== c.word.cells[0]) return;
+      var off = (maxLen - c.len) / 2 + c.col;
+      c.settle = (off / maxLen * REVERT_WAVE_MS + Math.random() * 150) / sp;
+      (c.word ? c.word.cells : [c]).forEach(function(x) {
+        x.reverting = true;
+      });
+      reverting.push(c);
+    });
+    revertStart = 0;
+    wake();
+  }
+  function scheduleRevert() {
+    cancelRevert();
+    if (o.rest !== "plain" || !animated()) return;
+    if (cells.some(function(c) {
+      return c.woke;
+    })) revertTimer = win.setTimeout(startRevert, o.revert * 1e3);
   }
   function build() {
     var plain = [];
@@ -562,6 +623,7 @@ function mount(root, options) {
     hot = [];
     moving = [];
     dirty = [];
+    cancelRevert();
     src.forEach(function(text, li) {
       var parsed = parseLine(String(text));
       var L = { cells: [], top: 0, left: 0, width: 0, natural: 0, grid: 0 };
@@ -589,9 +651,12 @@ function mount(root, options) {
           w0: 0,
           tw: -1,
           t0: 0,
+          ease: EASE_MS,
           x: 0,
           moving: false,
-          prev: null
+          prev: null,
+          woke: false,
+          reverting: false
         };
         at[offset] = col;
         offset += p.ch.length;
@@ -859,7 +924,7 @@ function mount(root, options) {
     return !dead && onScreen && !document.hidden;
   }
   function busy() {
-    return moving.length || hot.length || decoding || o.motion === "always" && animated();
+    return moving.length || hot.length || decoding || reverting.length || o.motion === "always" && animated();
   }
   function wake() {
     if (!raf && active()) raf = win.requestAnimationFrame(frame);
@@ -873,7 +938,7 @@ function mount(root, options) {
       pointerMoved = false;
       scan(now);
     }
-    if (animated() && (hot.length || decoding || o.motion === "always")) {
+    if (animated() && (hot.length || decoding || reverting.length || o.motion === "always")) {
       if (!lastTick || now - lastTick > 4 * TICK) lastTick = now - TICK;
       while (now - lastTick >= TICK) {
         lastTick += TICK;
@@ -889,7 +954,7 @@ function mount(root, options) {
   function stepWidths(now) {
     var still = [];
     for (var i = 0; i < moving.length; i++) {
-      var c = moving[i], p = Math.max(0, (now - c.t0) / EASE_MS);
+      var c = moving[i], p = Math.max(0, (now - c.t0) / c.ease);
       if (p >= 1) {
         c.w = c.tw;
         c.moving = false;
@@ -917,6 +982,22 @@ function mount(root, options) {
         }
       }
       hot = still;
+    }
+    if (reverting.length) {
+      if (!revertStart) revertStart = now;
+      var left = [];
+      for (var j = 0; j < reverting.length; j++) {
+        var rc = reverting[j];
+        if (now < revertStart + rc.settle) {
+          left.push(rc);
+          continue;
+        }
+        sleep(rc);
+        (rc.word ? rc.word.cells : [rc]).forEach(function(x) {
+          x.reverting = false;
+        });
+      }
+      reverting = left;
     }
     if (decoding) {
       if (!decodeStart) decodeStart = now;
@@ -956,6 +1037,7 @@ function mount(root, options) {
       for (var i = 0; i < L.cells.length; i++) {
         var c = L.cells[i], dx = (L.left + c.x + c.w / 2 - pointer.x) / rx;
         if (dx * dx < room) {
+          wakeCell(c);
           c.hot = until;
           if (!c.inHot) {
             c.inHot = true;
@@ -970,11 +1052,13 @@ function mount(root, options) {
     if (!rect) rect = renderer.el.getBoundingClientRect();
     pointer = { x: e.clientX - rect.left, y: e.clientY - rect.top };
     pointerMoved = true;
+    cancelRevert();
     wake();
   }
   function onLeave() {
     pointer = null;
     rect = null;
+    scheduleRevert();
   }
   function onScroll() {
     rect = null;
@@ -985,6 +1069,10 @@ function mount(root, options) {
   function onMotionPref() {
     reduce = mq.matches;
     if (reduce) {
+      cancelRevert();
+      cells.forEach(function(c) {
+        c.woke = false;
+      });
       hot.forEach(function(c) {
         c.hot = 0;
         c.inHot = false;
@@ -1001,6 +1089,10 @@ function mount(root, options) {
     wake();
   }
   function replay() {
+    cancelRevert();
+    cells.forEach(function(c) {
+      c.woke = false;
+    });
     if (!animated()) {
       decoding = false;
       settleAll();
@@ -1023,6 +1115,12 @@ function mount(root, options) {
     var rebuild = linesChanged || "wordMap" in next;
     var refont = "font" in next && next.font !== o.font || "fonts" in next;
     Object.assign(o, next);
+    if ("rest" in next) {
+      cells.forEach(function(c) {
+        c.woke = false;
+      });
+      cancelRevert();
+    }
     tables();
     if (refont) loadFonts();
     if (rebuild) build();
@@ -1040,6 +1138,7 @@ function mount(root, options) {
   }
   function destroy() {
     dead = true;
+    cancelRevert();
     if (raf) win.cancelAnimationFrame(raf);
     if (io) io.disconnect();
     if (ro) ro.disconnect();

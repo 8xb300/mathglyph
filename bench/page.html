@@ -7,6 +7,7 @@
             preview: a short pitch with the default options, for the README preview.
     chars   bench mode: characters of text (default 2000).
     motion  bench mode: the motion option (default hover).
+    rest    the rest option (default glyphs).
 -->
 <html lang="en">
 <head>
@@ -115,6 +116,7 @@
         ],
       }
     : { lines: benchLines(Number(params.get('chars') || 2000)), intro: false, motion: params.get('motion') || 'hover' };
+  if (params.get('rest')) options.rest = params.get('rest');
   document.body.classList.toggle('preview', mode === 'preview');
 
   window.__ready = (async () => {

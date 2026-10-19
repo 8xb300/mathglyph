@@ -52,6 +52,10 @@ export interface Options {
   words?: number;
   wordMap?: Record<string, string>;
   motion?: 'hover' | 'always' | 'still';
+  /** 'glyphs': glyphs at rest. 'plain': plain text at rest, glyphs only where the pointer touches. */
+  rest?: 'glyphs' | 'plain';
+  /** With rest: 'plain', seconds after the pointer leaves before the text goes back to plain. */
+  revert?: number;
   intro?: boolean;
   speed?: number;
   hoverRadius?: number;

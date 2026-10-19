@@ -11,6 +11,7 @@ Give it a few lines of text. It shows them centred, in monospace, with a math ac
 - At rest, some letters swap to math glyphs. Some glyphs get a colour from the palette, and some coloured glyphs get a box.
 - The pointer scrambles the characters near it, then they settle. There is also a left-to-right decode intro (on by default) and a slow idle reshuffle (off by default).
 - Words in `*stars*` are highlighted: white, and readable at rest.
+- With `rest: 'plain'`, the text is plain at rest. The pointer wakes glyphs near it, and the slots widen. A few seconds after the pointer leaves, the text goes back to plain and the slots narrow. The preview above uses this mode.
 
 ## How it's different
 
@@ -41,7 +42,7 @@ mathglyph is not on npm yet. Load it from jsDelivr, or copy `dist/` into your pr
 ```html
 <h1 id="hero">Every proof starts with a good guess</h1>
 <script type="module">
-  import { mount } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.1.1/dist/mathglyph.min.js';
+  import { mount } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.2.0/dist/mathglyph.min.js';
   const lines = ['Every proof starts', 'with a *good* guess'];  // *stars* highlight a word
   mount(document.getElementById('hero'), { lines, palette: 'ice' });
 </script>
@@ -50,7 +51,7 @@ mathglyph is not on npm yet. Load it from jsDelivr, or copy `dist/` into your pr
 With a plain script tag, the same exports are on the global `MathGlyph`:
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.1.1/dist/mathglyph.iife.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.2.0/dist/mathglyph.iife.min.js"></script>
 <script>
   MathGlyph.mount(document.getElementById('hero'), { lines: ['Every proof starts', 'with a *good* guess'] });
 </script>
@@ -74,6 +75,18 @@ fx.replay();                                     // run the decode intro again
 fx.reroll();                                     // pick new glyphs at rest
 ```
 
+### Plain at rest
+
+```js
+mount(document.getElementById('hero'), {
+  lines: ['every letter is a *variable*', 'and every word, a small *proof*'],
+  rest: 'plain',  // plain text until the pointer touches it
+  revert: 3,      // back to plain 3 s after the pointer leaves
+});
+```
+
+The intro decodes to plain text. On hover or touch, the characters near the pointer turn into glyphs and stay so while the pointer is over the text. When the pointer is away for `revert` seconds, the glyphs settle back to their letters in a short wave from left to right, and the slots narrow. The next hover picks new glyphs.
+
 ### Without JavaScript
 
 Put the plain text in the element, as in the first Quick start example. `mount` replaces it with the effect, and `destroy()` puts it back. Without JavaScript, or before the script loads, visitors and crawlers see the plain text.
@@ -85,7 +98,7 @@ Every option has a default. Pass any of them to `mount`, or change them later wi
 | Option | Default | What it does |
 |---|---|---|
 | `lines` | `['plain text, now with', 'a *math* accent']` | One string per row. Wrap words in `*stars*` to highlight them. |
-| `palette` | `'pastel'` | `'pastel'`, `'ember'`, `'ice'`, `'mono'`, `'shimmer'`, or an array of CSS colours. `'shimmer'` is the colours of the glyphs in the background of 8xb300.org. |
+| `palette` | `'pastel'` | `'pastel'`, `'ember'`, `'ice'`, `'mono'`, `'shimmer'`, or an array of CSS colours. `'shimmer'` is the colours of the glyphs in the background of 8xb300.org. Its navy is `#6475d8`, lightened from the site's `#131836` so it reads on dark backgrounds. |
 | `substitute` | `0.35` | Share of letters swapped at rest. |
 | `color` | `0.55` | How often glyphs get a palette colour. |
 | `box` | `0.22` | How often coloured glyphs get a box. |
@@ -101,6 +114,8 @@ Every option has a default. Pass any of them to `mount`, or change them later wi
 | `words` | `0.7` | How often words with a symbol meaning swap whole. Needs `expand`. |
 | `wordMap` | `null` | Extra word → symbol pairs, merged over the English map. |
 | `motion` | `'hover'` | `'hover'`: still until the pointer moves over it. `'always'`: adds a slow reshuffle. `'still'`: no animation. |
+| `rest` | `'glyphs'` | `'glyphs'`: some letters show glyphs at rest. `'plain'`: plain text at rest, glyphs only where the pointer touched. See [Plain at rest](#plain-at-rest). |
+| `revert` | `2` | With `rest: 'plain'`: seconds after the pointer leaves before the text goes back to plain. |
 | `intro` | `true` | Left-to-right decode on first show. |
 | `speed` | `1` | How fast the scramble flickers and settles, from `0.25` to `2`. |
 | `hoverRadius` | `2.6` | How far the pointer reaches, in character heights. |
@@ -193,7 +208,7 @@ The module also exports its built-in tables:
 Use them to build on the defaults:
 
 ```js
-import { mount, sets, palettes } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.1.1/dist/mathglyph.min.js';
+import { mount, sets, palettes } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.2.0/dist/mathglyph.min.js';
 
 mount(element, {
   symbols: Object.keys(sets).filter((name) => name !== 'greek'),  // every group but Greek
@@ -234,8 +249,8 @@ Lines are split into grapheme clusters with `Intl.Segmenter`, so any script work
 The built-in look-alike table covers Latin. Greek and Cyrillic tables ship as a separate module, `dist/languages.min.js` (under 1 KB gzipped), so pages that don't need them don't load them. Plug them in with `lookalikes`:
 
 ```js
-import { mount } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.1.1/dist/mathglyph.min.js';
-import { greek, cyrillic } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.1.1/dist/languages.min.js';
+import { mount } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.2.0/dist/mathglyph.min.js';
+import { greek, cyrillic } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.2.0/dist/languages.min.js';
 
 mount(element, {
   lines: ['каждый знак — *переменная*'],
@@ -299,7 +314,7 @@ Hovering over 2,000 characters (25 lines of 80) for 5 seconds, with a synthetic 
 | Frames over 20 ms | 0 | 0 | 0 |
 | Timer and frame wakeups in 10 s at rest | 167 | 0 | **0** |
 | Wakeups in 5 s off screen, `motion: 'always'` | 83 | 0 | **0** |
-| Size, minified and gzipped | 6,018 B | | 8,962 B |
+| Size, minified and gzipped | 6,018 B | | 9,471 B |
 
 - *First version*: the original script, one `<span>` per character, CSS width transitions, a 60 ms `setInterval` that never stops, and `getBoundingClientRect` on every character for each pointer move.
 - *DOM renderer*: this engine drawing into absolutely positioned spans moved with transforms. It ran 2.2× slower than canvas and added 0.8 KB, so it was dropped. It lives in commit `1f75b33` if you want to compare.
@@ -311,7 +326,7 @@ To run the benchmark: `npm install && npm run build`, then `npm i -D playwright 
 
 - The visual layer is `aria-hidden`. Screen readers and search engines read a visually hidden copy of the plain text, without the stars.
 - The element keeps its own role, so an `<h1>` stays a heading.
-- With `prefers-reduced-motion: reduce`, there is no intro, no hover scramble, no reshuffle and no transitions. Labels stay, since nothing flickers.
+- With `prefers-reduced-motion: reduce`, there is no intro, no hover scramble, no reshuffle and no transitions. With `rest: 'plain'` the text stays plain. Labels stay, since nothing flickers.
 
 ## Browser support
 

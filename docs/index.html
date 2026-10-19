@@ -24,7 +24,7 @@
     <section class="hero" aria-label="Live demo">
       <div id="hero"></div>
       <noscript><p class="hint">This demo needs JavaScript.</p></noscript>
-      <p class="hint">Point at the text, or drag across it, to stir the symbols.</p>
+      <p class="hint">Point at the text, or drag across it, to wake the symbols. Move away and it goes back to plain.</p>
     </section>
 
     <section class="panel" aria-labelledby="options-title">
@@ -152,6 +152,17 @@
               <option value="still">still</option>
             </select>
             <small id="motion-d">hover: moves near the pointer. always: adds a slow reshuffle. still: no animation.</small>
+          </div>
+          <div class="check">
+            <input type="checkbox" id="rest-plain" aria-describedby="rest-d">
+            <label for="rest-plain">plain at rest</label>
+            <small id="rest-d">rest: 'plain'. Plain text until the pointer touches it, then back to plain.</small>
+          </div>
+          <div class="field">
+            <label for="revert">revert after</label>
+            <output for="revert"></output>
+            <input type="range" id="revert" data-opt="revert" data-unit="s" min="0.5" max="8" step="0.5" aria-describedby="revert-d">
+            <small id="revert-d">revert: seconds after the pointer leaves before the text goes plain again.</small>
           </div>
           <div class="field">
             <label for="speed">speed</label>

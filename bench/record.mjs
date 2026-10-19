@@ -1,6 +1,7 @@
 // Records docs/preview.webp for the README: the preview page with the canvas renderer, or with the
-// original script while dist/mathglyph.js does not exist. The intro plays, then the real mouse
-// crosses the lines. Screenshots of the text are taken as fast as possible, and each frame keeps
+// original script while dist/mathglyph.js does not exist. The text is plain at rest (rest: 'plain').
+// The intro plays, the real mouse crosses the lines, leaves, and the text goes back to plain after
+// the default revert of 2 s. Screenshots of the text are taken as fast as possible, and each frame keeps
 // its real duration.
 //
 //   node bench/record.mjs [output.webp]
@@ -18,13 +19,13 @@ const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
 const sharp = require('sharp');
 
-const RECORD_MS = 7000;
+const RECORD_MS = 9000;
 const INTRO_MS = 1800;
 const SWEEP_MS = 1400;
 // Where the mouse goes, in fractions of the text's box. It waits at the first point while the
-// intro plays, then sweeps from point to point. x below 0 or above 1 is beside the text, so the
-// text settles again before the animation loops.
-const POINTS = [[-0.04, 0.22], [1.04, 0.42], [-0.04, 0.62], [1.04, 0.84]];
+// intro plays, then sweeps from point to point. x below 0 or above 1 is beside the text: the
+// last point leaves it, so the text goes back to plain before the animation loops.
+const POINTS = [[-0.04, 0.22], [1.04, 0.42], [-0.04, 0.72]];
 const MAX_BYTES = 1.5e6;
 // Tried in order until the file is under MAX_BYTES: WebP quality, and keep every n-th frame.
 // Fewer frames go first: they save more than a lower quality and keep the small text sharp.
@@ -71,7 +72,7 @@ const frames = [];
 const times = [];
 try {
   const page = await browser.newPage({ viewport: { width: 900, height: 320 }, deviceScaleFactor: 1 });
-  await page.goto(`http://127.0.0.1:${server.address().port}/bench/page.html?impl=${impl}&mode=preview`);
+  await page.goto(`http://127.0.0.1:${server.address().port}/bench/page.html?impl=${impl}&mode=preview&rest=plain`);
   await page.evaluate(() => window.__ready);
   const box = await page.locator('#fx').boundingBox();
   const clip = { x: Math.floor(box.x), y: Math.floor(box.y), width: Math.ceil(box.width), height: Math.ceil(box.height) };
