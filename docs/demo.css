@@ -263,6 +263,7 @@ button.primary { border-color: var(--accent); color: var(--accent); }
 }
 .name { margin: 10px 14px 0; font: 600 .86rem/1.3 var(--mono); }
 .card[aria-pressed=true] .name { color: var(--accent); }
+.kind { position: absolute; top: 8px; left: 8px; padding: 1px 8px; border: 1px solid var(--edge); border-radius: 999px; background: rgba(17, 17, 21, .85); color: var(--muted); font: .74rem/1.4 var(--mono); }
 .about {
   margin: 2px 14px 0;
   overflow: hidden;

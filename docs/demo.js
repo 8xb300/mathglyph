@@ -511,6 +511,13 @@ function addCard(kind, name, { about, lines = CARD_TEXT, texts, options, preview
   const title = document.createElement('span');
   title.className = 'name';
   title.textContent = name;
+  // The "your own" group holds a layout and an effect: a tag in the preview's corner says which.
+  if (custom) {
+    const tag = document.createElement('span');
+    tag.className = 'kind';
+    tag.textContent = kind;
+    card.append(tag);
+  }
   const caption = document.createElement('span');
   caption.className = 'about';
   caption.textContent = about;
