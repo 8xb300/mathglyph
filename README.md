@@ -2,7 +2,7 @@
 
 A small text effect: monospace text where some letters turn into math glyphs (𝕋 𝒢 ∃ ⊗) and move under the pointer.
 
-[Live demo](https://8xb300.github.io/mathglyph/) · [Demo source in `docs/`](docs/)
+[Live demo](https://8xb300.github.io/mathglyph/) · [Demo source in `docs/`](docs/) · [llms.txt](https://8xb300.github.io/mathglyph/llms.txt) · [Contributing](CONTRIBUTING.md)
 
 ![mathglyph preview](docs/preview.webp)
 
@@ -593,6 +593,8 @@ To run the benchmark: `npm install && npm run build`, then `npm i -D playwright 
 Evergreen browsers. Lines are split with `Intl.Segmenter` (Chrome 87+, Safari 14.1+, Firefox 125+). Where it is missing, mathglyph falls back to code points, so emoji sequences and letters built from combining marks may split across slots.
 
 ## Development
+
+Coding agents that work on this repo: see [AGENTS.md](AGENTS.md). Agents that add mathglyph to a site: see [llms.txt](https://8xb300.github.io/mathglyph/llms.txt) ([source](docs/llms.txt)). To send a change, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ```sh
 npm install
