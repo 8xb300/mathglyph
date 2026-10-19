@@ -326,10 +326,57 @@ function settingsOf(kind) {
   return { ...defaultsOf(kind, name), ...settings };
 }
 
-function choose(kind, name, settings = {}) {
+function valueOf(kind, name, settings = {}) {
   const defaults = defaultsOf(kind, name);
   const changed = Object.fromEntries(Object.entries(settings).filter(([key, value]) => value !== defaults[key]));
-  set({ [kind]: Object.keys(changed).length ? { name, ...changed } : name });
+  return Object.keys(changed).length ? { name, ...changed } : name;
+}
+
+function choose(kind, name, settings = {}) {
+  set({ [kind]: valueOf(kind, name, settings) });
+}
+
+// The language each layout card's picker shows. A layout card loads that text into the hero.
+const pickedText = {};
+
+// Everything a layout card shows, as an update for the hero: text, language, sizes and layout settings.
+function setupOf(name) {
+  const card = GALLERY.layout[name];
+  const code = card.texts ? pickedText[name] || Object.keys(card.texts)[0] : 'en';
+  const language = LANGUAGES[code];
+  const text = card.texts?.[code] || (card.lines ? { lines: card.lines } : language);
+  const { layout: { name: _, ...layoutSettings } = {}, ...options } = card.options || {};
+  const lookalikes = options.lookalikes || (language.lookalikes && TABLES[language.lookalikes]) || null;
+  return {
+    code,
+    tableName: Object.keys(TABLES).find((key) => TABLES[key] === lookalikes) || null,
+    patch: {
+      lines: text.lines,
+      anchor: options.anchor || text.anchor || null,
+      wordMap: language.wordMap || {},
+      lookalikes,
+      maxSize: BASE.maxSize,
+      fit: BASE.fit,
+      ...options,
+      layout: valueOf('layout', name, layoutSettings),
+    },
+  };
+}
+
+// Point the text box, language picker and sliders at what the hero shows now.
+function showControls(code) {
+  hero.lang = $('text').lang = code;
+  $('lang').value = code;
+  $('text').value = state.lines.join('\n');
+  $('anchor').value = state.anchor || '';
+  for (const key of ['maxSize', 'fit']) {
+    const input = $(key);
+    if (input.type === 'checkbox') input.checked = state[key];
+    else {
+      input.value = state[key];
+      showValue(input);
+    }
+  }
 }
 
 function addCard(kind, name, { about, lines = CARD_TEXT, texts, options }) {
@@ -386,6 +433,7 @@ function addCard(kind, name, { about, lines = CARD_TEXT, texts, options }) {
     const code = chip.dataset.text;
     for (const other of picker.children) other.setAttribute('aria-pressed', String(other === chip));
     live.lang = code;
+    pickedText[name] = code;
     mg.update({ lines: texts[code].lines, anchor: texts[code].anchor });
   });
   slot.append(card, picker);
@@ -453,7 +501,14 @@ $('gallery').addEventListener('click', (event) => {
   if (!card) return;
   const kind = card.dataset.layout ? 'layout' : 'effect';
   const name = card.dataset[kind];
-  if (name !== nameOf(state[kind])) {
+  if (kind === 'layout') {
+    const { code, tableName: table, patch } = setupOf(name);
+    tableName = table;
+    set(patch);
+    showControls(code);
+    showCards();
+    showSettings(kind);
+  } else if (name !== nameOf(state[kind])) {
     choose(kind, name);
     showCards();
     showSettings(kind);
