@@ -42,7 +42,7 @@ mathglyph is not on npm yet. Load it from jsDelivr, or copy `dist/` into your pr
 ```html
 <h1 id="hero">Every proof starts with a good guess</h1>
 <script type="module">
-  import { mount } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.2.1/dist/mathglyph.min.js';
+  import { mount } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.2.2/dist/mathglyph.min.js';
   const lines = ['Every proof starts', 'with a *good* guess'];  // *stars* highlight a word
   mount(document.getElementById('hero'), { lines, palette: 'ice' });
 </script>
@@ -51,7 +51,7 @@ mathglyph is not on npm yet. Load it from jsDelivr, or copy `dist/` into your pr
 With a plain script tag, the same exports are on the global `MathGlyph`:
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.2.1/dist/mathglyph.iife.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.2.2/dist/mathglyph.iife.min.js"></script>
 <script>
   MathGlyph.mount(document.getElementById('hero'), { lines: ['Every proof starts', 'with a *good* guess'] });
 </script>
@@ -85,7 +85,7 @@ mount(document.getElementById('hero'), {
 });
 ```
 
-The intro decodes to plain text. On hover or touch, the characters near the pointer turn into glyphs and stay so while the pointer is over the text. When the pointer has been away for `revert` seconds (default 0, so at once), the glyphs settle back to their letters in a short wave from left to right, and the slots narrow. The next hover picks new glyphs.
+The intro decodes to plain text. On hover or touch, the characters near the pointer turn into glyphs and stay so while the pointer is over the text. When the pointer has been away for `revert` seconds (default 0, so at once), the glyphs settle back to their letters in a short wave from left to right, and the slots narrow. The pointer is away when it leaves the text or the window, when the window loses focus, or when the page is hidden. A change of options while the pointer is away also ends in plain text. The next hover picks new glyphs.
 
 ### Without JavaScript
 
@@ -208,7 +208,7 @@ The module also exports its built-in tables:
 Use them to build on the defaults:
 
 ```js
-import { mount, sets, palettes } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.2.1/dist/mathglyph.min.js';
+import { mount, sets, palettes } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.2.2/dist/mathglyph.min.js';
 
 mount(element, {
   symbols: Object.keys(sets).filter((name) => name !== 'greek'),  // every group but Greek
@@ -249,8 +249,8 @@ Lines are split into grapheme clusters with `Intl.Segmenter`, so any script work
 The built-in look-alike table covers Latin. Greek and Cyrillic tables ship as a separate module, `dist/languages.min.js` (under 1 KB gzipped), so pages that don't need them don't load them. Plug them in with `lookalikes`:
 
 ```js
-import { mount } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.2.1/dist/mathglyph.min.js';
-import { greek, cyrillic } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.2.1/dist/languages.min.js';
+import { mount } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.2.2/dist/mathglyph.min.js';
+import { greek, cyrillic } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.2.2/dist/languages.min.js';
 
 mount(element, {
   lines: ['каждый знак — *переменная*'],
@@ -320,7 +320,7 @@ Hovering over 2,000 characters (25 lines of 80) for 5 seconds, with a synthetic 
 - *DOM renderer*: this engine drawing into absolutely positioned spans moved with transforms. It ran 2.2× slower than canvas and added 0.8 KB, so it was dropped. It lives in commit `1f75b33` if you want to compare.
 - *Canvas*: what ships. About 3 KB of its 9 KB are the symbol tables. The Greek and Cyrillic tables are a separate 0.9 KB module. It does more than the first version: fonts, languages, labels, pausing.
 
-To run the benchmark: `npm install && npm run build`, then `npm i -D playwright && npx playwright install chromium && node bench/run.mjs`.
+To run the benchmark: `npm install && npm run build`, then `npm i -D playwright && npx playwright install chromium && node bench/run.mjs`. `node bench/plain.mjs` checks that the demo with `rest: 'plain'` always goes back to plain text.
 
 ## Accessibility
 

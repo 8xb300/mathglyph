@@ -1,7 +1,7 @@
 // Records docs/preview.webp for the README: the preview page with the canvas renderer, or with the
 // original script while dist/mathglyph.js does not exist. The text is plain at rest (rest: 'plain').
-// The intro plays, the real mouse crosses the lines, leaves, and the text goes back to plain after
-// the default revert of 2 s. Screenshots of the text are taken as fast as possible, and each frame keeps
+// The intro plays, the real mouse crosses the lines, leaves, and the text goes back to plain at once
+// (the default revert of 0 s). Screenshots of the text are taken as fast as possible, and each frame keeps
 // its real duration.
 //
 //   node bench/record.mjs [output.webp]

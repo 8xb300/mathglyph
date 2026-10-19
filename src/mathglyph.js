@@ -438,18 +438,28 @@ export function mount(root, options) {
     });
   }
 
+  function isHot(c) {
+    return c.word ? c.word.cells.some(function (x) { return x.hot; }) : !!c.hot;
+  }
+
+  // After the text is re-rolled with no pointer on it, woken characters go back to plain.
+  function revertIfGone() {
+    if (!pointer && !reverting.length) scheduleRevert();
+  }
+
   function cancelRevert() {
     if (revertTimer) { win.clearTimeout(revertTimer); revertTimer = 0; }
     reverting.forEach(function (c) { c.reverting = false; });
     reverting = [];
   }
 
-  // Woken characters go back to plain in a wave from left to right.
+  // Woken characters go back to plain in a wave from left to right. It runs only once the pointer
+  // is gone, so characters that still scramble join the wave and sleep when they cool.
   function startRevert() {
     revertTimer = 0;
     var sp = Math.max(o.speed, 0.25);
     cells.forEach(function (c) {
-      if (!c.woke || c.hot || c.reverting || (c.word && c !== c.word.cells[0])) return;
+      if (!c.woke || c.reverting || (c.word && c !== c.word.cells[0])) return;
       var off = (maxLen - c.len) / 2 + c.col;
       c.settle = ((off / maxLen) * REVERT_WAVE_MS + Math.random() * 150) / sp;
       (c.word ? c.word.cells : [c]).forEach(function (x) { x.reverting = true; });
@@ -796,7 +806,7 @@ export function mount(root, options) {
       var left = [];
       for (var j = 0; j < reverting.length; j++) {
         var rc = reverting[j];
-        if (now < revertStart + rc.settle) { left.push(rc); continue; }
+        if (now < revertStart + rc.settle || isHot(rc)) { left.push(rc); continue; }
         sleep(rc);
         (rc.word ? rc.word.cells : [rc]).forEach(function (x) { x.reverting = false; });
       }
@@ -852,9 +862,19 @@ export function mount(root, options) {
     cancelRevert();
     wake();
   }
-  function onLeave() { pointer = null; rect = null; scheduleRevert(); }
+  // The pointer left the text, the window or the page. Each of these can come with another.
+  function onLeave() {
+    if (!pointer && (revertTimer || reverting.length)) return;
+    pointer = null;
+    rect = null;
+    scheduleRevert();
+  }
+  function onOut(e) { if (!e.relatedTarget) onLeave(); }
   function onScroll() { rect = null; }
-  function onVisibility() { wake(); }
+  function onVisibility() {
+    if (document.hidden) onLeave();
+    wake();
+  }
   function onMotionPref() {
     reduce = mq.matches;
     if (reduce) {
@@ -891,9 +911,13 @@ export function mount(root, options) {
     var rebuild = linesChanged || 'wordMap' in next;
     var refont = ('font' in next && next.font !== o.font) || 'fonts' in next;
     Object.assign(o, next);
-    if ('rest' in next) {
+    if ('rest' in next || !animated()) {
       cells.forEach(function (c) { c.woke = false; });
       cancelRevert();
+    }
+    if (!animated()) {
+      hot.forEach(function (c) { c.hot = 0; c.inHot = false; });
+      hot = [];
     }
     tables();
     if (refont) loadFonts();
@@ -903,6 +927,7 @@ export function mount(root, options) {
     layout();
     if (rebuild) { settleAll(); if (linesChanged && o.intro) replay(); }
     else if (!decoding) settleAll();
+    revertIfGone();
     flush();
     wake();
   }
@@ -916,6 +941,10 @@ export function mount(root, options) {
     root.removeEventListener('pointermove', onMove);
     root.removeEventListener('pointerdown', onMove);
     root.removeEventListener('pointerleave', onLeave);
+    root.removeEventListener('pointercancel', onLeave);
+    root.removeEventListener('touchend', onLeave);
+    document.removeEventListener('pointerout', onOut);
+    win.removeEventListener('blur', onLeave);
     win.removeEventListener('scroll', onScroll, true);
     document.removeEventListener('visibilitychange', onVisibility);
     if (mq && mq.removeEventListener) mq.removeEventListener('change', onMotionPref);
@@ -942,6 +971,10 @@ export function mount(root, options) {
   root.addEventListener('pointermove', onMove, { passive: true });
   root.addEventListener('pointerdown', onMove, { passive: true });
   root.addEventListener('pointerleave', onLeave);
+  root.addEventListener('pointercancel', onLeave);
+  root.addEventListener('touchend', onLeave, { passive: true });
+  document.addEventListener('pointerout', onOut, { passive: true });
+  win.addEventListener('blur', onLeave);
   win.addEventListener('scroll', onScroll, { passive: true, capture: true });
   document.addEventListener('visibilitychange', onVisibility);
   if (mq && mq.addEventListener) mq.addEventListener('change', onMotionPref);
@@ -968,7 +1001,7 @@ export function mount(root, options) {
     if (document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', onFonts);
   }
 
-  return { update: update, replay: replay, reroll: function () { settleAll(); wake(); }, destroy: destroy };
+  return { update: update, replay: replay, reroll: function () { settleAll(); revertIfGone(); wake(); }, destroy: destroy };
 }
 
 export { PALETTES as palettes, SETS as sets, WORDS as words, LOOKALIKE as lookalike, DEFAULTS as defaults };

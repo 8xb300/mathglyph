@@ -1,4 +1,4 @@
-/*! mathglyph v0.2.1 | MIT | github.com/8xb300/mathglyph */
+/*! mathglyph v0.2.2 | MIT | github.com/8xb300/mathglyph */
 
 // src/mathglyph.js
 var BASE = { bold: 119808, italic: 119860, script: 119964, fraktur: 120068, double: 120120 };
@@ -583,6 +583,14 @@ function mount(root, options) {
       paint(x, { g: x.ch, col: null, box: false });
     });
   }
+  function isHot(c) {
+    return c.word ? c.word.cells.some(function(x) {
+      return x.hot;
+    }) : !!c.hot;
+  }
+  function revertIfGone() {
+    if (!pointer && !reverting.length) scheduleRevert();
+  }
   function cancelRevert() {
     if (revertTimer) {
       win.clearTimeout(revertTimer);
@@ -597,7 +605,7 @@ function mount(root, options) {
     revertTimer = 0;
     var sp = Math.max(o.speed, 0.25);
     cells.forEach(function(c) {
-      if (!c.woke || c.hot || c.reverting || c.word && c !== c.word.cells[0]) return;
+      if (!c.woke || c.reverting || c.word && c !== c.word.cells[0]) return;
       var off = (maxLen - c.len) / 2 + c.col;
       c.settle = (off / maxLen * REVERT_WAVE_MS + Math.random() * 150) / sp;
       (c.word ? c.word.cells : [c]).forEach(function(x) {
@@ -990,7 +998,7 @@ function mount(root, options) {
       var left = [];
       for (var j = 0; j < reverting.length; j++) {
         var rc = reverting[j];
-        if (now < revertStart + rc.settle) {
+        if (now < revertStart + rc.settle || isHot(rc)) {
           left.push(rc);
           continue;
         }
@@ -1058,14 +1066,19 @@ function mount(root, options) {
     wake();
   }
   function onLeave() {
+    if (!pointer && (revertTimer || reverting.length)) return;
     pointer = null;
     rect = null;
     scheduleRevert();
+  }
+  function onOut(e) {
+    if (!e.relatedTarget) onLeave();
   }
   function onScroll() {
     rect = null;
   }
   function onVisibility() {
+    if (document.hidden) onLeave();
     wake();
   }
   function onMotionPref() {
@@ -1117,11 +1130,18 @@ function mount(root, options) {
     var rebuild = linesChanged || "wordMap" in next;
     var refont = "font" in next && next.font !== o.font || "fonts" in next;
     Object.assign(o, next);
-    if ("rest" in next) {
+    if ("rest" in next || !animated()) {
       cells.forEach(function(c) {
         c.woke = false;
       });
       cancelRevert();
+    }
+    if (!animated()) {
+      hot.forEach(function(c) {
+        c.hot = 0;
+        c.inHot = false;
+      });
+      hot = [];
     }
     tables();
     if (refont) loadFonts();
@@ -1135,6 +1155,7 @@ function mount(root, options) {
       settleAll();
       if (linesChanged && o.intro) replay();
     } else if (!decoding) settleAll();
+    revertIfGone();
     flush();
     wake();
   }
@@ -1147,6 +1168,10 @@ function mount(root, options) {
     root.removeEventListener("pointermove", onMove);
     root.removeEventListener("pointerdown", onMove);
     root.removeEventListener("pointerleave", onLeave);
+    root.removeEventListener("pointercancel", onLeave);
+    root.removeEventListener("touchend", onLeave);
+    document.removeEventListener("pointerout", onOut);
+    win.removeEventListener("blur", onLeave);
     win.removeEventListener("scroll", onScroll, true);
     document.removeEventListener("visibilitychange", onVisibility);
     if (mq && mq.removeEventListener) mq.removeEventListener("change", onMotionPref);
@@ -1175,6 +1200,10 @@ function mount(root, options) {
   root.addEventListener("pointermove", onMove, { passive: true });
   root.addEventListener("pointerdown", onMove, { passive: true });
   root.addEventListener("pointerleave", onLeave);
+  root.addEventListener("pointercancel", onLeave);
+  root.addEventListener("touchend", onLeave, { passive: true });
+  document.addEventListener("pointerout", onOut, { passive: true });
+  win.addEventListener("blur", onLeave);
   win.addEventListener("scroll", onScroll, { passive: true, capture: true });
   document.addEventListener("visibilitychange", onVisibility);
   if (mq && mq.addEventListener) mq.addEventListener("change", onMotionPref);
@@ -1202,6 +1231,7 @@ function mount(root, options) {
   }
   return { update, replay, reroll: function() {
     settleAll();
+    revertIfGone();
     wake();
   }, destroy };
 }
