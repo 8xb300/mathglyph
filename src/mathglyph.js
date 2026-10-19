@@ -143,7 +143,7 @@ var DEFAULTS = {
   wordMap: null,
   motion: 'hover',
   rest: 'glyphs',
-  revert: 2,
+  revert: 0,
   intro: true,
   speed: 1,
   hoverRadius: 2.6,
@@ -462,7 +462,9 @@ export function mount(root, options) {
   function scheduleRevert() {
     cancelRevert();
     if (o.rest !== 'plain' || !animated()) return;
-    if (cells.some(function (c) { return c.woke; })) revertTimer = win.setTimeout(startRevert, o.revert * 1000);
+    if (!cells.some(function (c) { return c.woke; })) return;
+    if (o.revert > 0) revertTimer = win.setTimeout(startRevert, o.revert * 1000);
+    else startRevert();
   }
 
   // ---- text model ----

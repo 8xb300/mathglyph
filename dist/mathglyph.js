@@ -1,4 +1,4 @@
-/*! mathglyph v0.2.0 | MIT | github.com/8xb300/mathglyph */
+/*! mathglyph v0.2.1 | MIT | github.com/8xb300/mathglyph */
 
 // src/mathglyph.js
 var BASE = { bold: 119808, italic: 119860, script: 119964, fraktur: 120068, double: 120120 };
@@ -286,7 +286,7 @@ var DEFAULTS = {
   wordMap: null,
   motion: "hover",
   rest: "glyphs",
-  revert: 2,
+  revert: 0,
   intro: true,
   speed: 1,
   hoverRadius: 2.6,
@@ -611,9 +611,11 @@ function mount(root, options) {
   function scheduleRevert() {
     cancelRevert();
     if (o.rest !== "plain" || !animated()) return;
-    if (cells.some(function(c) {
+    if (!cells.some(function(c) {
       return c.woke;
-    })) revertTimer = win.setTimeout(startRevert, o.revert * 1e3);
+    })) return;
+    if (o.revert > 0) revertTimer = win.setTimeout(startRevert, o.revert * 1e3);
+    else startRevert();
   }
   function build() {
     var plain = [];

@@ -54,7 +54,7 @@ export interface Options {
   motion?: 'hover' | 'always' | 'still';
   /** 'glyphs': glyphs at rest. 'plain': plain text at rest, glyphs only where the pointer touches. */
   rest?: 'glyphs' | 'plain';
-  /** With rest: 'plain', seconds after the pointer leaves before the text goes back to plain. */
+  /** With rest: 'plain', seconds after the pointer leaves before the text goes back to plain. Default 0: at once. */
   revert?: number;
   intro?: boolean;
   speed?: number;

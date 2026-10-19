@@ -42,7 +42,7 @@ mathglyph is not on npm yet. Load it from jsDelivr, or copy `dist/` into your pr
 ```html
 <h1 id="hero">Every proof starts with a good guess</h1>
 <script type="module">
-  import { mount } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.2.0/dist/mathglyph.min.js';
+  import { mount } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.2.1/dist/mathglyph.min.js';
   const lines = ['Every proof starts', 'with a *good* guess'];  // *stars* highlight a word
   mount(document.getElementById('hero'), { lines, palette: 'ice' });
 </script>
@@ -51,7 +51,7 @@ mathglyph is not on npm yet. Load it from jsDelivr, or copy `dist/` into your pr
 With a plain script tag, the same exports are on the global `MathGlyph`:
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.2.0/dist/mathglyph.iife.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.2.1/dist/mathglyph.iife.min.js"></script>
 <script>
   MathGlyph.mount(document.getElementById('hero'), { lines: ['Every proof starts', 'with a *good* guess'] });
 </script>
@@ -81,11 +81,11 @@ fx.reroll();                                     // pick new glyphs at rest
 mount(document.getElementById('hero'), {
   lines: ['every letter is a *variable*', 'and every word, a small *proof*'],
   rest: 'plain',  // plain text until the pointer touches it
-  revert: 3,      // back to plain 3 s after the pointer leaves
+  revert: 0,      // back to plain as soon as the pointer leaves (seconds to wait)
 });
 ```
 
-The intro decodes to plain text. On hover or touch, the characters near the pointer turn into glyphs and stay so while the pointer is over the text. When the pointer is away for `revert` seconds, the glyphs settle back to their letters in a short wave from left to right, and the slots narrow. The next hover picks new glyphs.
+The intro decodes to plain text. On hover or touch, the characters near the pointer turn into glyphs and stay so while the pointer is over the text. When the pointer has been away for `revert` seconds (default 0, so at once), the glyphs settle back to their letters in a short wave from left to right, and the slots narrow. The next hover picks new glyphs.
 
 ### Without JavaScript
 
@@ -115,7 +115,7 @@ Every option has a default. Pass any of them to `mount`, or change them later wi
 | `wordMap` | `null` | Extra word → symbol pairs, merged over the English map. |
 | `motion` | `'hover'` | `'hover'`: still until the pointer moves over it. `'always'`: adds a slow reshuffle. `'still'`: no animation. |
 | `rest` | `'glyphs'` | `'glyphs'`: some letters show glyphs at rest. `'plain'`: plain text at rest, glyphs only where the pointer touched. See [Plain at rest](#plain-at-rest). |
-| `revert` | `2` | With `rest: 'plain'`: seconds after the pointer leaves before the text goes back to plain. |
+| `revert` | `0` | With `rest: 'plain'`: seconds after the pointer leaves before the text goes back to plain. |
 | `intro` | `true` | Left-to-right decode on first show. |
 | `speed` | `1` | How fast the scramble flickers and settles, from `0.25` to `2`. |
 | `hoverRadius` | `2.6` | How far the pointer reaches, in character heights. |
@@ -208,7 +208,7 @@ The module also exports its built-in tables:
 Use them to build on the defaults:
 
 ```js
-import { mount, sets, palettes } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.2.0/dist/mathglyph.min.js';
+import { mount, sets, palettes } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.2.1/dist/mathglyph.min.js';
 
 mount(element, {
   symbols: Object.keys(sets).filter((name) => name !== 'greek'),  // every group but Greek
@@ -249,8 +249,8 @@ Lines are split into grapheme clusters with `Intl.Segmenter`, so any script work
 The built-in look-alike table covers Latin. Greek and Cyrillic tables ship as a separate module, `dist/languages.min.js` (under 1 KB gzipped), so pages that don't need them don't load them. Plug them in with `lookalikes`:
 
 ```js
-import { mount } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.2.0/dist/mathglyph.min.js';
-import { greek, cyrillic } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.2.0/dist/languages.min.js';
+import { mount } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.2.1/dist/mathglyph.min.js';
+import { greek, cyrillic } from 'https://cdn.jsdelivr.net/gh/8xb300/mathglyph@v0.2.1/dist/languages.min.js';
 
 mount(element, {
   lines: ['каждый знак — *переменная*'],
