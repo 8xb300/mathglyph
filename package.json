@@ -1,0 +1,44 @@
+{
+  "name": "mathglyph",
+  "version": "0.1.0",
+  "description": "A tiny text effect: monospace text where letters swap to math glyphs, breathe, and scramble under the pointer.",
+  "type": "module",
+  "main": "dist/mathglyph.js",
+  "module": "dist/mathglyph.js",
+  "types": "dist/mathglyph.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/mathglyph.d.ts",
+      "import": "./dist/mathglyph.js"
+    },
+    "./languages": {
+      "types": "./dist/languages.d.ts",
+      "import": "./dist/languages.min.js"
+    }
+  },
+  "files": [
+    "dist",
+    "fonts",
+    "src"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "node build.mjs",
+    "bench": "node bench/run.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  },
+  "keywords": [
+    "text-effect",
+    "math",
+    "unicode",
+    "glyph",
+    "animation",
+    "canvas",
+    "typography"
+  ],
+  "repository": "github:8xb300/mathglyph",
+  "homepage": "https://8xb300.github.io/mathglyph/",
+  "license": "MIT"
+}
